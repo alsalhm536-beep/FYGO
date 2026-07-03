@@ -178,10 +178,14 @@
           <div style="font-size:40px" id="doneEmoji">✅</div>
           <div class="status-big" id="doneText"></div>
           <div class="fare-big" id="doneFare"></div>
-          <div id="ratingBox">
-            <div class="muted" style="margin-bottom:8px">قيّم رحلتك</div>
+          <div id="ratingBox" style="display:flex;flex-direction:column;gap:10px">
+            <div class="muted">قيّم السائق</div>
             <div class="stars" id="starRow"></div>
-            <button class="btn btn-amber" id="rateBtn" onclick="sendRating()" disabled style="margin-top:12px">إرسال التقييم</button>
+            <textarea id="rateComment" rows="2" placeholder="تعليق (اختياري): الأسلوب، نظافة السيارة، القيادة..."
+              style="width:100%;border:1px solid #e2e8f0;border-radius:14px;padding:12px;font-family:inherit;font-size:13px;resize:none;outline:none"></textarea>
+            <div class="muted">💵 بقشيش للسائق (اختياري — بتسلمه كاش مع الأجرة)</div>
+            <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap" id="tipRow"></div>
+            <button class="btn btn-amber" id="rateBtn" onclick="confirmRating()" disabled>✓ تأكيد التقييم</button>
           </div>
           <div id="ratedMsg" class="hidden" style="color:#059669;font-weight:800">شكراً لتقييمك! ⭐</div>
           <button class="btn btn-dark" onclick="newRide()">رحلة جديدة</button>
@@ -538,7 +542,9 @@ function showDone() {
   $("ratingBox").classList.toggle("hidden", !canRate);
   $("ratedMsg").classList.add("hidden");
   if (carMarker) { map.removeLayer(carMarker); carMarker = null; }
-  stars = 0; renderStars();
+  stars = 0; tip = 0;
+  $("rateComment").value = "";
+  renderStars(); renderTips();
 }
 
 async function drawActiveRoute() {
@@ -588,6 +594,8 @@ function updateCarMarker(d) {
 
 // ---------- دورة الرحلة ----------
 async function requestRide() {
+  // ✋ تأكيد الرحلة قبل الإرسال
+  if (!confirm(`تأكيد طلب الرحلة؟\n\nمن: ${pickup.address}\nإلى: ${dest.address}\nالأجرة التقريبية: ${fmt(estimateFor(carType))}`)) return;
   $("rideErr").textContent = "";
   $("requestBtn").disabled = true;
   try {
@@ -625,6 +633,8 @@ function startPoll() {
 }
 
 async function cancelRide() {
+  // ✋ تأكيد الإلغاء
+  if (!confirm("متأكد بدك تلغي الطلب؟")) return;
   try {
     const rows = await rest("PATCH", `rides?id=eq.${ride.id}&status=in.(pending,accepted)`,
       { status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "passenger" },
@@ -633,16 +643,35 @@ async function cancelRide() {
   } catch (e) { alert("ما قدرنا نلغي: " + e.message); }
 }
 
-// ---------- التقييم ----------
+// ---------- التقييم والبقشيش ----------
+let tip = 0;
+const TIP_OPTIONS = [0, 1000, 2000, 5000];
+
 function renderStars() {
   $("starRow").innerHTML = [1,2,3,4,5].map(s =>
     `<button class="${s <= stars ? "on" : ""}" onclick="setStars(${s})">★</button>`).join("");
   $("rateBtn").disabled = !stars;
 }
 function setStars(s) { stars = s; renderStars(); }
-async function sendRating() {
+
+function renderTips() {
+  $("tipRow").innerHTML = TIP_OPTIONS.map(t => `
+    <button onclick="setTip(${t})"
+      style="padding:8px 14px;border-radius:999px;border:2px solid ${tip === t ? "#fbbf24" : "#e2e8f0"};
+             background:${tip === t ? "#fffbeb" : "#fff"};color:#0f172a;font-weight:800;font-size:13px;cursor:pointer">
+      ${t ? fmt(t) : "بدون"}</button>`).join("");
+}
+function setTip(t) { tip = t; renderTips(); }
+
+async function confirmRating() {
+  const msg = "تأكيد التقييم: " + stars + " نجوم" + (tip ? " + بقشيش " + fmt(tip) : "") + "؟";
+  if (!confirm(msg)) return;
   try {
-    await rest("POST", "ratings", { ride_id: ride.id, rater_id: userId, rated_id: ride.driver_id, stars });
+    await rest("POST", "ratings", {
+      ride_id: ride.id, rater_id: userId, rated_id: ride.driver_id,
+      stars, comment: $("rateComment").value.trim() || null, rater_role: "passenger",
+    });
+    if (tip > 0) await rest("PATCH", `rides?id=eq.${ride.id}`, { tip });
     $("ratingBox").classList.add("hidden");
     $("ratedMsg").classList.remove("hidden");
   } catch (e) { alert("ما قدرنا نرسل التقييم: " + e.message); }
@@ -664,6 +693,7 @@ function newRide() {
 }
 
 renderStars();
+renderTips();
 </script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});

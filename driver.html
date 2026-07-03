@@ -195,6 +195,14 @@
           <div class="divider"></div>
           <div class="row" style="justify-content:space-between"><span class="muted">عمولة التطبيق</span><span style="color:#f87171" id="sumCommission"></span></div>
           <div class="row" style="justify-content:space-between;font-weight:800"><span>صافي الربح</span><span class="ok" id="sumNet"></span></div>
+          <div class="divider"></div>
+          <div id="dRateBox" style="display:flex;flex-direction:column;gap:10px">
+            <div class="muted">قيّم الراكب</div>
+            <div style="display:flex;justify-content:center;gap:8px;direction:ltr" id="dStarRow"></div>
+            <input id="dRateComment" placeholder="تعليق (اختياري): التزام، أسلوب، دفع...">
+            <button class="btn btn-green" id="dRateBtn" onclick="confirmDriverRating()" disabled>✓ تأكيد التقييم</button>
+          </div>
+          <div id="dRatedMsg" class="hidden" style="color:#34d399;font-weight:800">شكراً لتقييمك ⭐</div>
           <button class="btn btn-amber" onclick="backToWork()">العودة لاستقبال الطلبات</button>
         </div>
       </div>
@@ -559,6 +567,8 @@ function pickupDistTxt(r) {
 
 // ---------- قبول الرحلة (عبر الدالة المحمية من الـ race condition) ----------
 async function acceptRide(rideId) {
+  // ✋ تأكيد قبول الرحلة
+  if (!confirm("تأكيد قبول الرحلة؟")) return;
   try {
     const r = await rpc("accept_ride", { p_ride_id: rideId });
     ride = r;
@@ -648,8 +658,10 @@ async function setRideStatus(status) {
 
 // ---------- إنهاء الرحلة (تحسب العمولة تلقائياً) ----------
 async function completeRide() {
+  const finalFare = (ride.estimated_fare || 0) + waitFee;
+  // ✋ تأكيد إنهاء الرحلة
+  if (!confirm("تأكيد إنهاء الرحلة؟\nالأجرة النهائية للتحصيل: " + fmt(finalFare))) return;
   try {
-    const finalFare = (ride.estimated_fare || 0) + waitFee;
     const r = await rpc("complete_ride", { p_ride_id: ride.id, p_final_fare: finalFare });
     ride = r;
     driver.presence = "online";
@@ -658,7 +670,35 @@ async function completeRide() {
     $("sumFare").textContent = fmt(r.final_fare);
     $("sumCommission").textContent = "- " + fmt(r.commission);
     $("sumNet").textContent = fmt(r.final_fare - r.commission);
+    // تجهيز قسم تقييم الراكب
+    dStars = 0; $("dRateComment").value = "";
+    $("dRateBox").classList.remove("hidden");
+    $("dRatedMsg").classList.add("hidden");
+    renderDStars();
     updatePresenceUI();
+  } catch (e) { alert("خطأ: " + e.message); }
+}
+
+// ---------- تقييم السائق للراكب ----------
+let dStars = 0;
+function renderDStars() {
+  $("dStarRow").innerHTML = [1,2,3,4,5].map(s =>
+    `<button onclick="setDStars(${s})"
+      style="background:none;border:none;font-size:32px;cursor:pointer;color:${s <= dStars ? "#fbbf24" : "#334155"}">★</button>`).join("");
+  $("dRateBtn").disabled = !dStars;
+}
+function setDStars(s) { dStars = s; renderDStars(); }
+
+async function confirmDriverRating() {
+  // ✋ تأكيد التقييم
+  if (!confirm("تأكيد تقييم الراكب بـ " + dStars + " نجوم؟")) return;
+  try {
+    await rest("POST", "ratings", {
+      ride_id: ride.id, rater_id: userId, rated_id: ride.passenger_id,
+      stars: dStars, comment: $("dRateComment").value.trim() || null, rater_role: "driver",
+    });
+    $("dRateBox").classList.add("hidden");
+    $("dRatedMsg").classList.remove("hidden");
   } catch (e) { alert("خطأ: " + e.message); }
 }
 

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FYGO — لوحة التحكم</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', 'Segoe UI', sans-serif; }
+  body { background: #f8fafc; min-height: 100vh; color: #0f172a; }
+  .wrap { max-width: 560px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .hidden { display: none !important; }
+
+  header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+           background: #0f172a; color: #fff; position: sticky; top: 0; z-index: 10; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; background: #fbbf24; color: #0f172a;
+          display: flex; align-items: center; justify-content: center; font-weight: 800; }
+  main { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  .center { display: flex; flex-direction: column; justify-content: center; flex: 1; padding: 24px; gap: 12px; }
+  .title { font-size: 22px; font-weight: 800; text-align: center; }
+  .sub { color: #64748b; font-size: 14px; text-align: center; }
+
+  input { width: 100%; padding: 14px; border-radius: 14px; border: 1px solid #e2e8f0;
+          background: #fff; font-size: 15px; outline: none; }
+  input:focus { border-color: #fbbf24; }
+  input.ltr { direction: ltr; text-align: right; }
+
+  .btn { padding: 13px; border-radius: 14px; border: none; font-weight: 800; font-size: 15px;
+         cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-amber { background: #fbbf24; color: #0f172a; width: 100%; }
+  .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 10px; }
+  .btn-green { background: #10b981; color: #fff; }
+  .btn-red { background: #fee2e2; color: #dc2626; }
+  .btn-ghost { background: none; border: none; color: #94a3b8; cursor: pointer; font-weight: 700; }
+  .btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+
+  .card { background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .err { color: #ef4444; font-size: 13px; font-weight: 700; text-align: center; min-height: 18px; }
+  .muted { color: #94a3b8; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .code { direction: ltr; text-align: left; font-family: monospace; font-size: 12px;
+          background: #0f172a; color: #34d399; padding: 12px; border-radius: 12px; word-break: break-all; }
+
+  .tabs { display: flex; background: #e2e8f0; border-radius: 14px; padding: 4px; gap: 4px; position: sticky; top: 62px; z-index: 9; }
+  .tabs button { flex: 1; padding: 10px 4px; border: none; border-radius: 10px; font-weight: 800;
+                 font-size: 12.5px; background: none; color: #64748b; cursor: pointer; }
+  .tabs button.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px; }
+  .stat .v { font-size: 20px; font-weight: 800; margin-top: 4px; }
+  .stat .l { font-size: 12px; color: #64748b; font-weight: 700; }
+  .stat.dark { background: #0f172a; color: #fbbf24; border-color: #0f172a; }
+  .stat.dark .l { color: #94a3b8; }
+
+  .badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+  .b-pending { background: #fef3c7; color: #b45309; }
+  .b-approved { background: #d1fae5; color: #047857; }
+  .b-rejected { background: #fee2e2; color: #dc2626; }
+  .b-suspended { background: #e2e8f0; color: #64748b; }
+  .b-online { background: #d1fae5; color: #047857; }
+  .b-busy { background: #fef3c7; color: #b45309; }
+  .b-offline { background: #f1f5f9; color: #94a3b8; }
+  .b-ride-pending { background: #fef3c7; color: #b45309; }
+  .b-ride-active { background: #dbeafe; color: #1d4ed8; }
+  .b-ride-completed { background: #d1fae5; color: #047857; }
+  .b-ride-cancelled { background: #fee2e2; color: #dc2626; }
+
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #0f172a; color: #fbbf24;
+            display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; padding-top: 10px; }
+  .bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar .fill { width: 100%; background: #fbbf24; border-radius: 6px 6px 0 0; min-height: 3px; }
+  .bar .lbl { font-size: 9px; color: #94a3b8; font-weight: 700; }
+  .refresh-note { text-align: center; font-size: 10px; color: #cbd5e1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ تسجيل الدخول ============ -->
+  <div id="authScreen" class="center">
+    <div class="logo" style="width:60px;height:60px;border-radius:18px;font-size:26px;margin:0 auto 8px">F</div>
+    <div class="title">لوحة تحكم FYGO</div>
+    <div class="sub" style="margin-bottom:10px">دخول المشرفين فقط</div>
+    <input id="email" class="ltr" type="email" placeholder="البريد الإلكتروني">
+    <input id="password" class="ltr" type="password" placeholder="كلمة السر">
+    <div class="err" id="authErr"></div>
+    <button class="btn btn-amber" id="authBtn" onclick="login()">دخول</button>
+  </div>
+
+  <!-- ============ ليس أدمن ============ -->
+  <div id="notAdmin" class="center hidden">
+    <div style="font-size:44px;text-align:center">🔒</div>
+    <div class="title">حسابك مو أدمن بعد</div>
+    <div class="sub">شغّل هاد الأمر بـ SQL Editor بـ Supabase (بدّل الإيميل بإيميلك):</div>
+    <div class="code" id="adminSql"></div>
+    <button class="btn btn-amber" onclick="recheckAdmin()">🔄 تحقق مرة تانية</button>
+    <button class="btn-ghost" onclick="logout()">خروج</button>
+  </div>
+
+  <!-- ============ اللوحة ============ -->
+  <div id="appScreen" class="hidden" style="display:flex;flex-direction:column;flex:1">
+    <header>
+      <div class="brand"><div class="logo">F</div> لوحة التحكم</div>
+      <button class="btn-ghost" style="color:#94a3b8" onclick="logout()">خروج ⎋</button>
+    </header>
+    <main>
+      <div class="tabs">
+        <button id="tab-overview" class="active" onclick="setTab('overview')">نظرة عامة</button>
+        <button id="tab-drivers" onclick="setTab('drivers')">السائقين</button>
+        <button id="tab-rides" onclick="setTab('rides')">الرحلات</button>
+        <button id="tab-pricing" onclick="setTab('pricing')">الأسعار</button>
+        <button id="tab-wallet" onclick="setTab('wallet')">محاسبة</button>
+      </div>
+
+      <!-- نظرة عامة -->
+      <div id="view-overview">
+        <div class="stats">
+          <div class="stat dark"><div class="l">إيرادات مكتملة</div><div class="v" id="stRevenue">—</div></div>
+          <div class="stat"><div class="l">إجمالي الرحلات</div><div class="v" id="stRides">—</div></div>
+          <div class="stat"><div class="l">سائقين متصلين</div><div class="v" id="stOnline">—</div></div>
+          <div class="stat"><div class="l">عمولات المنصة</div><div class="v" id="stCommission">—</div></div>
+        </div>
+        <div class="card" style="margin-top:10px">
+          <b style="font-size:14px">رحلات آخر 7 أيام</b>
+          <div class="chart" id="chart"></div>
+        </div>
+        <div class="card" style="margin-top:10px" id="pendingDriversCard">
+          <b style="font-size:14px">⏳ سائقين بانتظار الموافقة</b>
+          <div id="pendingDriversList" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- السائقين -->
+      <div id="view-drivers" class="hidden">
+        <div id="driversList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- الرحلات -->
+      <div id="view-rides" class="hidden">
+        <div id="ridesList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- الأسعار -->
+      <div id="view-pricing" class="hidden">
+        <div class="muted" style="text-align:center;margin-bottom:4px">التعديلات بتنعكس فوراً على تطبيقات الركاب والسائقين</div>
+        <div id="pricingList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- المحاسبة (محفظة السائقين) -->
+      <div id="view-wallet" class="hidden">
+        <div class="muted" style="text-align:center;margin-bottom:4px">عمولات المنصة المتراكمة على كل سائق — بتتصفّى لما تستلم منه كاش</div>
+        <div id="walletList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <div class="refresh-note">يتم التحديث تلقائياً كل 5 ثواني</div>
+    </main>
+  </div>
+</div>
+
+<script>
+// ============================================================
+const SUPABASE_URL = "https://bbhetzistcuttqwspdui.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiaGV0emlzdGN1dHRxd3NwZHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NDY1NDMsImV4cCI6MjA5ODUyMjU0M30.i3Sg2xRYXjGjq2xF5TWxeYC9OV33qUYVw3oOndrUnRM";
+
+let token = null, userId = null, userEmail = "", tab = "overview", pollTimer = null;
+let drivers = [], rides = [], walletTx = [];
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n == null ? "—" : new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+const fmtN = (n) => new Intl.NumberFormat("ar-SY").format(n);
+
+const D_STATUS = { pending_review: ["قيد المراجعة","b-pending"], approved: ["مفعّل","b-approved"], rejected: ["مرفوض","b-rejected"], suspended: ["موقوف","b-suspended"] };
+const D_PRESENCE = { online: ["متصل","b-online"], busy: ["في رحلة","b-busy"], offline: ["غير متصل","b-offline"] };
+const R_STATUS = {
+  pending: ["بانتظار سائق","b-ride-pending"], accepted: ["مقبولة","b-ride-active"],
+  arrived: ["السائق وصل","b-ride-active"], in_progress: ["جارية","b-ride-active"],
+  completed: ["مكتملة","b-ride-completed"], cancelled: ["ملغاة","b-ride-cancelled"],
+};
+
+async function authReq(path, body) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", apikey: ANON_KEY },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.msg || d.error_description || d.message || "خطأ بالاتصال");
+  return d;
+}
+async function rest(method, path, body, prefer) {
+  const h = { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: "Bearer " + token };
+  if (prefer) h.Prefer = prefer;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+  const t = await r.text();
+  const d = t ? JSON.parse(t) : null;
+  if (!r.ok) throw new Error((d && (d.message || d.hint)) || "خطأ بالطلب");
+  return d;
+}
+
+// ---------- الدخول ----------
+async function login() {
+  $("authErr").textContent = "";
+  $("authBtn").disabled = true;
+  try {
+    const d = await authReq("token?grant_type=password", {
+      email: $("email").value.trim(), password: $("password").value,
+    });
+    token = d.access_token; userId = d.user.id; userEmail = d.user.email;
+    await checkAdmin();
+  } catch (e) {
+    const m = String(e.message);
+    $("authErr").textContent =
+      m.includes("Invalid login") ? "بيانات الدخول غير صحيحة"
+      : m.includes("Failed to fetch") ? "ما في اتصال بالسيرفر — تأكد من الإنترنت/VPN"
+      : m;
+  } finally { $("authBtn").disabled = false; }
+}
+
+async function checkAdmin() {
+  const p = await rest("GET", `profiles?id=eq.${userId}&select=role`);
+  $("authScreen").classList.add("hidden");
+  if (p && p[0] && p[0].role === "admin") {
+    $("notAdmin").classList.add("hidden");
+    $("appScreen").classList.remove("hidden");
+    refreshAll();
+    loadPricing();
+    pollTimer = setInterval(refreshAll, 5000);
+  } else {
+    $("adminSql").textContent = `update profiles set role='admin' where id='${userId}';`;
+    $("notAdmin").classList.remove("hidden");
+  }
+}
+async function recheckAdmin() { await checkAdmin(); }
+
+function logout() {
+  token = null; userId = null;
+  clearInterval(pollTimer);
+  $("appScreen").classList.add("hidden");
+  $("notAdmin").classList.add("hidden");
+  $("authScreen").classList.remove("hidden");
+}
+
+// ---------- التبويبات ----------
+function setTab(t) {
+  tab = t;
+  ["overview","drivers","rides","pricing","wallet"].forEach(v => {
+    $("view-" + v).classList.toggle("hidden", v !== t);
+    $("tab-" + v).classList.toggle("active", v === t);
+  });
+}
+
+// ---------- جلب وتحديث ----------
+async function refreshAll() {
+  try {
+    [drivers, rides, walletTx] = await Promise.all([
+      rest("GET", "drivers?select=*,profiles(full_name,phone)&order=created_at.desc"),
+      rest("GET", "rides?select=*&order=requested_at.desc&limit=100"),
+      rest("GET", "wallet_transactions?select=driver_id,amount&limit=5000"),
+    ]);
+    renderOverview();
+    renderDrivers();
+    renderRides();
+    renderWallet();
+  } catch (e) { console.error(e); }
+}
+
+function renderOverview() {
+  const completed = rides.filter(r => r.status === "completed");
+  const revenue = completed.reduce((s, r) => s + (r.final_fare || 0), 0);
+  const commission = completed.reduce((s, r) => s + (r.commission || 0), 0);
+  $("stRevenue").textContent = fmt(revenue);
+  $("stRides").textContent = fmtN(rides.length);
+  $("stOnline").textContent = fmtN(drivers.filter(d => d.presence !== "offline").length);
+  $("stCommission").textContent = fmt(commission);
+
+  // مخطط آخر 7 أيام
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const count = rides.filter(r => (r.requested_at || "").slice(0, 10) === key).length;
+    days.push({ label: d.toLocaleDateString("ar-SY", { weekday: "short" }), count });
+  }
+  const max = Math.max(1, ...days.map(d => d.count));
+  $("chart").innerHTML = days.map(d =>
+    `<div class="bar"><div style="font-size:10px;font-weight:800;color:#b45309">${d.count || ""}</div>
+     <div class="fill" style="height:${(d.count / max) * 70}px"></div>
+     <div class="lbl">${d.label}</div></div>`).join("");
+
+  // سائقين بانتظار الموافقة
+  const pend = drivers.filter(d => d.status === "pending_review");
+  $("pendingDriversCard").classList.toggle("hidden", !pend.length);
+  $("pendingDriversList").innerHTML = pend.map(d => driverRow(d, true)).join("");
+}
+
+function driverRow(d, compact) {
+  const st = D_STATUS[d.status] || [d.status, "b-suspended"];
+  const pr = D_PRESENCE[d.presence] || [d.presence, "b-offline"];
+  const name = d.profiles?.full_name || "سائق";
+  return `
+  <div class="card" style="margin-top:${compact ? "8px" : "0"}">
+    <div class="row">
+      <div class="avatar">${name[0]}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:14px">${name}</div>
+        <div class="muted">${d.car_model || ""} · ${d.car_plate || ""} · ⭐ ${d.rating}</div>
+        <div class="muted">${d.profiles?.phone || ""}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <span class="badge ${st[1]}">${st[0]}</span>
+        ${d.status === "approved" ? `<span class="badge ${pr[1]}">${pr[0]}</span>` : ""}
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+      <select onchange="setDriverCategory('${d.id}', this.value)"
+        style="padding:8px 10px;border-radius:10px;border:1px solid #e2e8f0;font-weight:700;font-size:13px;background:#fff;font-family:inherit">
+        <option value="eco" ${d.car_category === "eco" ? "selected" : ""}>🚕 عادي</option>
+        <option value="comfort" ${d.car_category === "comfort" ? "selected" : ""}>🚗 مريح</option>
+        <option value="vip" ${d.car_category === "vip" ? "selected" : ""}>🚘 VIP</option>
+      </select>
+      ${d.status !== "approved" ? `<button class="btn btn-sm btn-green" onclick="setDriverStatus('${d.id}','approved')">✓ موافقة</button>` : ""}
+      ${d.status === "pending_review" ? `<button class="btn btn-sm btn-red" onclick="setDriverStatus('${d.id}','rejected')">✗ رفض</button>` : ""}
+      ${d.status === "approved" ? `<button class="btn btn-sm btn-red" onclick="setDriverStatus('${d.id}','suspended')">⏸ إيقاف</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function renderDrivers() {
+  $("driversList").innerHTML = drivers.length
+    ? drivers.map(d => driverRow(d, false)).join("")
+    : `<div class="card" style="text-align:center;color:#94a3b8">ما في سائقين مسجلين بعد</div>`;
+}
+
+async function setDriverStatus(id, status) {
+  try {
+    await rest("PATCH", `drivers?id=eq.${id}`, { status });
+    refreshAll();
+  } catch (e) { alert("خطأ: " + e.message); }
+}
+
+async function setDriverCategory(id, car_category) {
+  try {
+    await rest("PATCH", `drivers?id=eq.${id}`, { car_category });
+    const d = drivers.find(x => x.id === id);
+    if (d) d.car_category = car_category;
+  } catch (e) { alert("ما قدرنا نغير الفئة: " + e.message); refreshAll(); }
+}
+
+// ---------- المحاسبة: أرصدة السائقين والتحصيل ----------
+function renderWallet() {
+  // الرصيد = مجموع الحركات (العمولات سالبة، التحصيل موجب)
+  const byDriver = {};
+  (walletTx || []).forEach(t => { byDriver[t.driver_id] = (byDriver[t.driver_id] || 0) + t.amount; });
+  const ids = Object.keys(byDriver);
+
+  const totalOwed = ids.reduce((s, id) => s + Math.max(0, -byDriver[id]), 0);
+
+  $("walletList").innerHTML = (ids.length ? `
+    <div class="card" style="background:#0f172a;color:#fff;border-color:#0f172a">
+      <div class="muted" style="color:#94a3b8">إجمالي العمولات غير المحصّلة</div>
+      <div style="font-size:22px;font-weight:800;color:#fbbf24;margin-top:2px">${fmt(totalOwed)}</div>
+    </div>` : "") +
+    (ids.length ? ids.map(id => {
+      const d = drivers.find(x => x.id === id);
+      const name = d?.profiles?.full_name || "سائق";
+      const owed = Math.max(0, -byDriver[id]);
+      return `
+      <div class="card">
+        <div class="row">
+          <div class="avatar">${name[0]}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14px">${name}</div>
+            <div class="muted">${d?.car_model || ""} · ${d?.car_plate || ""}</div>
+          </div>
+          <div style="text-align:left">
+            <div class="muted">عمولات مستحقة</div>
+            <div style="font-weight:800;font-size:15px;color:${owed ? "#dc2626" : "#047857"}">${fmt(owed)}</div>
+          </div>
+        </div>
+        ${owed
+          ? `<button class="btn btn-sm btn-green" style="margin-top:10px;width:100%" onclick="settleDriver('${id}', ${owed})">💵 استلمنا الكاش — تصفير الحساب</button>`
+          : `<div style="margin-top:8px;text-align:center;color:#047857;font-weight:800;font-size:12px">✓ الحساب مصفّى</div>`}
+      </div>`;
+    }).join("") : `<div class="card" style="text-align:center;color:#94a3b8">ما في حركات مالية بعد — بتظهر أول ما تخلص رحلات</div>`);
+}
+
+async function settleDriver(id, owed) {
+  if (!confirm("تأكيد: استلمت " + fmt(owed) + " كاش من السائق؟")) return;
+  try {
+    await rest("POST", "wallet_transactions",
+      { driver_id: id, amount: owed, type: "settlement", note: "تحصيل نقدي من السائق" });
+    refreshAll();
+  } catch (e) { alert("خطأ: " + e.message); }
+}
+
+function renderRides() {
+  $("ridesList").innerHTML = rides.length
+    ? rides.slice(0, 30).map(r => {
+        const st = R_STATUS[r.status] || [r.status, "b-suspended"];
+        const t = r.requested_at ? new Date(r.requested_at).toLocaleString("ar-SY", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+        return `
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <b style="font-size:13px">${r.pickup_address} ← ${r.dest_address}</b>
+            <span class="badge ${st[1]}">${st[0]}</span>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:8px">
+            <span class="muted">${t} · ${r.car_category} · ${r.payment_method === "cash" ? "كاش" : "محفظة"}</span>
+            <b style="color:#b45309">${fmt(r.final_fare || r.estimated_fare)}</b>
+          </div>
+          ${r.commission ? `<div class="muted" style="margin-top:4px">عمولة المنصة: ${fmt(r.commission)}</div>` : ""}
+        </div>`;
+      }).join("")
+    : `<div class="card" style="text-align:center;color:#94a3b8">ما في رحلات بعد</div>`;
+}
+
+// ---------- محرر الأسعار ----------
+// بينحمّل مرة وحدة (مو مع التحديث الدوري) حتى ما تنمسح القيم وإنت عم تكتب
+const CAT_AR = { eco: "🚕 عادي", comfort: "🚗 مريح", vip: "🚘 VIP" };
+let pricingRows = [];
+
+async function loadPricing() {
+  try {
+    pricingRows = await rest("GET", "pricing?select=*&order=base_fare.asc") || [];
+    renderPricing();
+  } catch (e) { console.error(e); }
+}
+
+function renderPricing() {
+  $("pricingList").innerHTML = pricingRows.map(p => `
+    <div class="card">
+      <b style="font-size:15px">${CAT_AR[p.car_category] || p.car_category}</b>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <label style="font-size:12px;color:#64748b;font-weight:700">أجرة الفتح (ل.س)
+          <input class="ltr" type="number" id="bf-${p.car_category}" value="${p.base_fare}" style="margin-top:4px">
+        </label>
+        <label style="font-size:12px;color:#64748b;font-weight:700">سعر الكيلومتر (ل.س)
+          <input class="ltr" type="number" id="km-${p.car_category}" value="${p.per_km}" style="margin-top:4px">
+        </label>
+        <label style="font-size:12px;color:#64748b;font-weight:700">سعر دقيقة الانتظار (ل.س)
+          <input class="ltr" type="number" id="pm-${p.car_category}" value="${p.per_minute}" style="margin-top:4px">
+        </label>
+        <label style="font-size:12px;color:#64748b;font-weight:700">عمولة المنصة (%)
+          <input class="ltr" type="number" step="0.5" id="cm-${p.car_category}" value="${p.commission_pct}" style="margin-top:4px">
+        </label>
+      </div>
+      <button class="btn btn-amber btn-sm" style="margin-top:10px;width:100%" onclick="savePricing('${p.car_category}')">💾 حفظ ${CAT_AR[p.car_category] || ""}</button>
+      <div class="ok hidden" id="saved-${p.car_category}" style="margin-top:6px;color:#047857;font-weight:800;font-size:12px;text-align:center">✓ تم الحفظ</div>
+    </div>`).join("");
+}
+
+async function savePricing(cat) {
+  const body = {
+    base_fare: parseInt($("bf-" + cat).value) || 0,
+    per_km: parseInt($("km-" + cat).value) || 0,
+    per_minute: parseInt($("pm-" + cat).value) || 0,
+    commission_pct: parseFloat($("cm-" + cat).value) || 0,
+  };
+  try {
+    await rest("PATCH", `pricing?car_category=eq.${cat}`, body);
+    const row = pricingRows.find(p => p.car_category === cat);
+    if (row) Object.assign(row, body);
+    $("saved-" + cat).classList.remove("hidden");
+    setTimeout(() => $("saved-" + cat).classList.add("hidden"), 2500);
+  } catch (e) { alert("ما قدرنا نحفظ: " + e.message); }
+}
+</script>
+</body>
+</html>

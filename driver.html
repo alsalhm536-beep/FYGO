@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FYGO — السائق</title>
+<link rel="manifest" href="manifest-driver.json">
+<meta name="theme-color" content="#020617">
+<link rel="apple-touch-icon" href="icon-d-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', 'Segoe UI', sans-serif; }
+  body { background: #020617; color: #fff; min-height: 100vh; }
+  .wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .hidden { display: none !important; }
+
+  header { padding: 16px; display: flex; align-items: center; justify-content: space-between;
+           border-bottom: 1px solid #1e293b; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+  .logo { width: 38px; height: 38px; border-radius: 12px; background: #fbbf24; color: #0f172a;
+          display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+  main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .center { display: flex; flex-direction: column; justify-content: center; flex: 1; padding: 24px; gap: 12px; }
+  .title { font-size: 24px; font-weight: 800; text-align: center; }
+  .sub { color: #94a3b8; font-size: 14px; text-align: center; margin-bottom: 12px; }
+
+  input, select { width: 100%; padding: 15px; border-radius: 16px; border: 1px solid #334155;
+          background: #0f172a; color: #fff; font-size: 15px; outline: none; }
+  input:focus, select:focus { border-color: #fbbf24; }
+  input.ltr { direction: ltr; text-align: right; }
+  input::placeholder { color: #64748b; }
+
+  .btn { width: 100%; padding: 15px; border-radius: 16px; border: none; font-weight: 800;
+         font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-amber { background: #fbbf24; color: #0f172a; }
+  .btn-green { background: #10b981; color: #fff; }
+  .btn-ghost { background: transparent; color: #94a3b8; font-size: 14px; font-weight: 700; border: none; cursor: pointer; }
+  .btn-reject { background: #1e293b; color: #f87171; }
+  .btn:disabled { background: #1e293b; color: #64748b; cursor: not-allowed; }
+
+  .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; padding: 16px; }
+  .err { color: #f87171; font-size: 13px; font-weight: 700; text-align: center; min-height: 18px; }
+  .ok { color: #34d399; font-size: 13px; font-weight: 700; text-align: center; }
+  .muted { color: #64748b; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .power-zone { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 0; }
+  .power { width: 120px; height: 120px; border-radius: 50%; border: none; cursor: pointer;
+           background: #1e293b; color: #fff; font-size: 44px; transition: all .3s; }
+  .power.on { background: #10b981; box-shadow: 0 0 40px rgba(16,185,129,.4); }
+
+  .badge { padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .badge-on { background: rgba(16,185,129,.15); color: #34d399; }
+  .badge-off { background: #1e293b; color: #94a3b8; }
+  .badge-busy { background: rgba(251,191,36,.15); color: #fbbf24; }
+
+  .ride-card { border: 1px solid #334155; }
+  .fare { color: #34d399; font-weight: 800; font-size: 18px; }
+  .status-big { font-size: 20px; font-weight: 800; text-align: center; }
+  .amber { color: #fbbf24; }
+
+  .spinner { width: 34px; height: 34px; border: 4px solid #334155; border-top-color: #fbbf24;
+             border-radius: 50%; margin: 0 auto; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .divider { border-top: 1px solid #1e293b; margin: 8px 0; }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ تسجيل الدخول ============ -->
+  <div id="authScreen" class="center">
+    <div class="logo" style="width:64px;height:64px;border-radius:20px;font-size:30px;margin:0 auto 10px">F</div>
+    <div class="title">FYGO — السائق</div>
+    <div class="sub" id="authSub">أنشئ حساب سائق جديد</div>
+
+    <input id="fullName" placeholder="الاسم الكامل">
+    <input id="phone" class="ltr" placeholder="رقم الموبايل (09xxxxxxxx)">
+    <input id="email" class="ltr" type="email" placeholder="البريد الإلكتروني">
+    <input id="password" class="ltr" type="password" placeholder="كلمة السر (6 أحرف عالأقل)">
+    <div class="err" id="authErr"></div>
+    <button class="btn btn-amber" id="authBtn" onclick="submitAuth()">إنشاء حساب</button>
+    <button class="btn-ghost" id="authToggle" onclick="toggleMode()">عندك حساب؟ سجّل دخول</button>
+  </div>
+
+  <!-- ============ تسجيل بيانات السيارة (أول مرة) ============ -->
+  <div id="carScreen" class="center hidden">
+    <div class="title">🚗 سجّل سيارتك</div>
+    <div class="sub">مرة وحدة بس — حتى تصير سائق بالمنصة</div>
+    <input id="carModel" placeholder="موديل السيارة (مثال: كيا سيراتو)">
+    <input id="carColor" placeholder="اللون">
+    <input id="carPlate" placeholder="رقم اللوحة (مثال: دمشق 514236)">
+    <input id="licenseNum" placeholder="رقم رخصة القيادة">
+    <select id="carCategory">
+      <option value="eco">🚕 فئة السيارة: عادي</option>
+      <option value="comfort">🚗 فئة السيارة: مريح (كومفورت)</option>
+      <option value="vip">🚘 فئة السيارة: VIP</option>
+    </select>
+    <div class="muted" style="text-align:center">الإدارة بتراجع الفئة وممكن تعدّلها حسب حالة السيارة</div>
+    <div class="err" id="carErr"></div>
+    <button class="btn btn-amber" id="carBtn" onclick="registerDriver()">تسجيل</button>
+  </div>
+
+  <!-- ============ الشاشة الرئيسية ============ -->
+  <div id="appScreen" class="hidden" style="display:flex;flex-direction:column;flex:1">
+    <header>
+      <div class="brand"><div class="logo">F</div> <span id="driverName">السائق</span></div>
+      <div class="row">
+        <span class="badge badge-busy" id="catBadge">🚕</span>
+        <span class="badge badge-off" id="presenceBadge">○ غير متصل</span>
+        <button class="btn-ghost" onclick="logout()">⎋</button>
+      </div>
+    </header>
+    <main>
+
+      <!-- انتظار الموافقة -->
+      <div id="pendingReview" class="hidden">
+        <div class="card" style="text-align:center;padding:26px">
+          <div style="font-size:40px">⏳</div>
+          <div class="status-big" style="margin-top:10px">حسابك قيد المراجعة</div>
+          <div class="muted" style="margin-top:8px">بانتظار موافقة الإدارة على بيانات سيارتك</div>
+          <button class="btn btn-ghost" onclick="checkApproval()" style="margin-top:10px;color:#fbbf24">🔄 تحقق من الموافقة</button>
+        </div>
+      </div>
+
+      <!-- متصل / غير متصل -->
+      <div id="idleView" class="hidden">
+        <div class="power-zone">
+          <button class="power" id="powerBtn" onclick="togglePresence()">
+            <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>
+            </svg>
+          </button>
+          <div class="muted" id="powerHint" style="font-size:14px;font-weight:700">اضغط لبدء استقبال الطلبات</div>
+        </div>
+        <div class="err" id="idleErr"></div>
+        <div class="card" style="margin-bottom:12px">
+          <b style="font-size:14px">📍 نطاق استلام الطلبات</b>
+          <div class="muted" id="gpsNote" style="margin-top:4px">أقصى بُعد لموقع الراكب عنك</div>
+          <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap" id="radiusBtns"></div>
+        </div>
+        <div id="waitingBox" class="card hidden" style="text-align:center">
+          <div class="spinner"></div>
+          <div style="margin-top:10px;font-weight:700;color:#94a3b8">عم نبحثلك عن طلبات...</div>
+          <div class="muted" style="font-size:10px;margin-top:6px">يتم التحديث كل 3 ثواني</div>
+        </div>
+      </div>
+
+      <!-- طلبات معلقة -->
+      <div id="requestsView" class="hidden">
+        <div class="status-big" style="text-align:right;font-size:18px">🔔 طلبات متاحة</div>
+        <div id="requestsList" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div>
+      </div>
+
+      <!-- رحلة نشطة -->
+      <div id="tripView" class="hidden">
+        <div id="tripMap" class="hidden" style="height:36vh;border-radius:18px;border:1px solid #1e293b;margin-bottom:12px"></div>
+        <div class="card">
+          <div class="status-big amber" id="tripStatus"></div>
+          <div class="divider"></div>
+          <div class="row" style="margin-bottom:8px"><div class="dot" style="background:#10b981"></div><span id="tripPickup"></span></div>
+          <div class="row"><div class="dot" style="background:#fbbf24"></div><span id="tripDest"></span></div>
+          <div class="divider"></div>
+          <div class="row" style="justify-content:space-between">
+            <span class="muted">الأجرة</span>
+            <span class="fare" id="tripFare"></span>
+          </div>
+          <div id="waitBox" class="hidden">
+            <div class="divider"></div>
+            <div class="row" style="justify-content:space-between">
+              <span class="muted">⏱ عداد الانتظار</span>
+              <span style="font-weight:800;font-family:monospace" id="waitTime" dir="ltr">00:00</span>
+            </div>
+            <div class="row" style="justify-content:space-between;margin-top:4px">
+              <span class="muted" id="waitLabel">أول 3 دقائق مجاناً</span>
+              <span style="font-weight:800;color:#fbbf24" id="waitFeeTxt">0 ل.س</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-amber hidden" id="arrivedBtn" onclick="setRideStatus('arrived')">وصلت لموقع الراكب</button>
+        <button class="btn btn-amber hidden" id="startBtn" onclick="setRideStatus('in_progress')">الراكب ركب — ابدأ الرحلة</button>
+        <button class="btn btn-green hidden" id="completeBtn" onclick="completeRide()">إنهاء الرحلة</button>
+      </div>
+
+      <!-- ملخص -->
+      <div id="summaryView" class="hidden">
+        <div class="card" style="text-align:center;display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:40px">💰</div>
+          <div class="status-big">تمت الرحلة بنجاح</div>
+          <div class="fare" style="font-size:28px" id="sumFare"></div>
+          <div class="divider"></div>
+          <div class="row" style="justify-content:space-between"><span class="muted">عمولة التطبيق</span><span style="color:#f87171" id="sumCommission"></span></div>
+          <div class="row" style="justify-content:space-between;font-weight:800"><span>صافي الربح</span><span class="ok" id="sumNet"></span></div>
+          <button class="btn btn-amber" onclick="backToWork()">العودة لاستقبال الطلبات</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ============================================================
+const SUPABASE_URL = "https://bbhetzistcuttqwspdui.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiaGV0emlzdGN1dHRxd3NwZHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NDY1NDMsImV4cCI6MjA5ODUyMjU0M30.i3Sg2xRYXjGjq2xF5TWxeYC9OV33qUYVw3oOndrUnRM";
+
+let mode = "signup", token = null, userId = null;
+let driver = null, ride = null, pollTimer = null;
+let pricing = [], waitStart = null, waitTimer = null, waitFee = 0;
+const FREE_WAIT_SEC = 180; // أول 3 دقائق انتظار مجاناً
+let maxKm = null, myLat = null, myLng = null, geoWatch = null, lastGeoSave = 0;
+let audioCtx = null, seenRides = new Set();
+let alertAudio = null, alertTimer = null;
+const ALERT_SOUND = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tIwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAABEAABD7AAHCw4OEhYWGR0dISUlKCwsMDMzNzs7P0JGRkpNTVFVVVlcXGBkZGdra29zc3Z6en6BhYWJjIyQlJSYm5ufo6OmqqqusrK1ubm9wMTEyMzMz9PT19ra3uLi5unp7fHx9Pj4/P8AAAAATGF2YzYwLjMxAAAAAAAAAAAAAAAAJAPAAAAAAAAAQ+zfJwfGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//tIxAABACACAAEAACFruNsgMIsQAgCCBSnK8I3//hIXYTufXeJYSZ/pRb/+A2MlzJYFjeNgWMZjGBTfgMdGoTQl/4cwGjHf36NRifq53+kmf//IrkVyN9J9/1nqdCKrn/I2hPUQv9hycP+wIiBYWCAQNAAABcnR7WKEDF43WTkIACBgIw7AHADiPBhAKAAYAMIz3F7IBoAuH5ApIuwoKD0l3dxcXBoHlIKA0DyhcUp4DgGgef8EGTfpUWldoLnwlXcILni4uyIYguf7u4uLg0QQwXiPA0XcgUMqKyxcxOXfe6d//mXP3v0d3e/36IqYnmne+b0v4RJexQUR//tIxEWAFDnY9TSUAALJpyNXNaAALnmL//ivSf6LlJgz9IM4nqJ/F1HxZbwgAAAAKemekdDLChVnY0JHAMiPysMBY5cNI2NsQI6Jm8/aQSlmSSGpUHtHw/9w0ggyo0yJURgwg2H+amN+4BkYCKKeYOYEyJg2zg75Sb5hzZkgi9VrxVTNt0FgkQBAgKOqWTH65v8PxVxHYfdR2H4uXkLUmHLexbCoVZJN/6//7z+ZQuMYSuV38N04oEo0b8ozyXU8ry1e/X7/f7//pMP/vO/rHv7qdyt427fez9jl3/V3VQRAAAAACL6B//VsgwyjjQu1GNL0Vppc7LP0EKze//tIxA6BECUxNb2HgAG/peZZhYsTVWkNOCGNN/mK7ZgFeCpPQwy1w53PQIG/mtIcgiEGHqhQX9YFZ75e6rJh1WJHn9K+3m/+M4/2x53/K7+I+7X16wW7XxmrvW6/G/Acl9V1zGvaHnUksKtdSqSPv5gPtWt7Zif1dAgALB/N6mTTFl8PWJSlNHEYa9e2wARwfunxehCkoJm4Lnyhn1FJQoKMNNtaaWmy+kKstbCgM6uNZeCeNVz4oBM2K8sPmkmxIMZekWOOrfDblSv4a77DxczmP0TMTjCKKib1uGc4elvqngvsmc4x+AuSAAAAA5AN2scqAHYa872MZUWS//tIxAmBjo0jN0w868nAJmb1hYtIaCxhWwcwIeBiZiCVBMwBdLLou7mvAkcGvuE3iqNhLrgyAU8a124dyrTJ9+UkKzFtDfRe4NR7qNxhTiZG7Og0+U6gXPHElRa9ciUZkH2vl9GfKH00dTOcOmc81qqX/BO/MkEMAXQP/fcRdzHXgu3qYacixYv1VlhYFvXt3C5GS4MieyeXRONHDtQ/GKWs2RQtnkip2DltKk7ncWUuKhv7mEOGc1qNzFvKzEyCQXIFttUW5Q3k6/qUf7GFH/aQjvofj/b20gx6FoXY3qV+QV0AVADqCGAAAAAAToH/jcrgNLjJ41dKPh0i//tIxAqAjokvOawk+gnMpiblhgtIsVm7p1C7+O6NsIgFEeqLwmItejTwi2L12do0CDfQFPWWCIJ+5Y0i0mPVIpy+hnUr8n6kj3bol6ZGT8sQOrvqJy2qJnAFuZj4wj2kzMqTXzafVmM3W3ObyXlC6G1Ew+LUwDBcNawzwO+GSwzduEqQgRW7mGbKi0Erm4VBpeRe9OqrC6q2aFZBUDQRS9aIUQ49Eipk6xECvlZlieytcEOZ+BfCllNe1ZhUrtRJ1OuCR+BhiuUh2xhF0/DDk9CQNX0khj7T+hsOm2/9aL/3boX0fqdRFQhAAIAADYf/dSszfZMxy7TEo3IK//tIxAoBjt0NOYwZWgmqpKf1h5XxI9p8Wylx38iLmQClMmfNIMWqzGMnDJ1RqbuZp7LgTsvVUxEJtSd3LEdlP+5v20a6kqq5Us9JaklBiAgGVCxwxmbkEWzI+s4qAQkB08HyJE1U2ozJvPTn6FK/duVOdwt+Q2sc6OApgNbs9wEMkrWa7vqOr9QJdw1xIg24pqRQkgz4R5LEA73RQjclNuFDE/QJPkAriZg6rVsuAoUSG4ZiCAR4ObV3nTdB30Xum76+d+zf8dwkNMOVwWTlc+InXlX+V2ZBpK9UbiIO3UTJoLUMcAAAAABTAf+7l0qRT6h377YUfU2Mu6qI//tIxAyAjgUvQaw89IGon2h1h514r2Ll54C2inNtP2XzTSLcMFFJSrrwQ+XM70q4qIQCkayIGUeEB1mMHPAgZjRfSZhGxpwLHY8rozoj+amcDT9As6trTKEjeqKj+56tK1Ru7cq+m1skec/JjDIEABXAf+G9Cjk8KTc/KS9oPC8HTsI5mSUjQZgvsD4WlOXeKLsVdU1epkII3auZiF1xiEpFcVs7rEEblGvG3u7umYauYN2ns9XmD3e74+Gr4jmLzLZQt6/5kUFpUJocUdAh0FRzqTHrSlUGCFExAAAAEuA/8+7EJWpYdhVgRJRZuzWoBSr5222RUzUuO9RS//tIxBKAjNUxR+wsuAGNoui1h52wx0N5Ex8rOvYxyhv0jrsWzy1UfGQx/nAKyeh6NzR0exBWyjO0wf9X4TH3w6xOhnsduo3VU0VCjiib/v4iKq+N9Yo4osHAAcgH/lXuAhC6KG0/XCQ6Xr6IN4MAWS2Z3wB0Y0EO+GriftQ2RSt0hNR1tESd/oyPTykBjwd0bxStVxLBjamdjBI8NUV93on+ghPR8Rr8o52Ov6v/eSMtdvuZUqYCizmYBggQEQAAAApgNFSwBcTeNRI2KYRyH2gSkHC05vZTgFy3QRx81nJEIyDQiIzFhkuZsUiGIM2msr7Km5d+ovI896yT//tIxCEAjJkXR+g868GLpCk1h56R71EPMHxbmldEo7bW1EJycUl16roUb7q/0VmlG/N8dfOsQBhB2CgBLwP/96LYKPQLci0FpupR9zmFYCz2qumxjIN3nOnJh45fABNGILO5S+O2d1dLFjt+1llGgu/Ib+XDOm731U4+SXM6zCP2TEKeKKcq7I4/6FLv3VlHWntf0flS+rkvpRoYdAAAAAB2gf4h5AMw5SkgOR7jdCzprmUHL86PUCYZYYnseGbDoUwq0kq4UEZTgfPvGJNvGYhMlQ2RtMBKFZhKmtPHYYTZ2qfEaSno24WK2wHbXRqiJvQj/Ro1h91GCzoK//tIxDCBjHD3SaesuEFyJem1B5V6PWGxBCE4BuawxgAzEMSNyVFFFXreS6jGteZrEgWdjs8A74bEDXnWrUN9xlj9Gjw1vLY5Jpu/0YuafFtfUwscgGuW1Vovo/Ggjtih+dEPjF8jf3eOlc5/Xzi76mJxphAUVAAAAACbAf5vxGysewrwQyA7dVwVAxYNIq7CFNGjzdPyeNxhi1P8XeDRc6uWziTPjVbC7qmTXwQ+kfGPW+nMYjg8oXRKDer+GPHnS7lGfLvrXmfQ1qEl+Z5UknUhkjZGCsA/zjQeRa32IbmBKBZ5jx0+Jkq48E+QJpobhJZXpI1yMsBodXvA//tIxEQBi/0lTaeI+gGJJClo9ZcIJQbZ2KtfXhGtUq3DlhMHeiAYmo5ztFpourZAe1b5b7Ga6pncFvQIs/MvGp7t/ZxNpv6towsXUSRFzNUgAAAADNwP/tqLVXPmJWqEoDKfMTEnww0OfM0pfE8cw+nqmbpXAkOkTEgWRCJZEwAdCzSIVCVDtxB1Chi3mp3ZGKHZCub6N25SieZFW1XagMWlINu/Rwa3JiLESKryR0DCDAwMAAACoA//x0rhXbw4VqipKl2Cc2sC5Fb52Xvg0iXTJfey+8B8hso1L3USRLRFMmpSTm5issB2fXctNo7qeA7+5f38/UO5IMLf//tIxFYAC+j1SUekVIGTHug9h5aZ1nwoLPizcKd2qPMMvV9BAUyx/9XUfH3xDFQIIAAAlAH/vV1H9GppMigCNwA4dN2MOsRKH9DUCmLsfalPFpYUgzDlJNeBSRURWtK1lKx052zsiFdu2R6YcVdX3asSIOK4PnRUamebes1KiBH1E7PRa8VDtHPZKmnVmKRcDAACA4PPUICfrV54iySzrsdlTETIBBo264RY1XAFBo7lOpAXZZNazrQB+7FnYVwdgGd45RzNCBmqrtvdhPwku2QbOmtgb29y2ocUgv9e9PFYsb12LevKek1p/dEOEF1sHmwx0AmqBFAAAAAA//tIxGeAjFj3Q6w870GVmCbkHDxoMAH//agO2lSw6lh19i0xXsjOsBVADkpnTM2i6j0p4vyBXKdQ4MUGK8YoMAnEZSqxnN4V5XzUTIcJkq6eMuUMULdmksXLx8gVAI1Xb6W5NlDaoBX+UTYyJXSvrIgIRB+924kdApGm9i9VRNLSH5RI3eixvyheJ6IZfFXqtU2MTab7/O2sGJLgJtLU+wuwsDB2LUB5c3NTTDEwK8qmqc5MiXoEEGvBM0DB+SVLuVWF3XbczWOsIXOUepwjqNG+/Dv+ahLAQAAGAA/8fsj+SzXJpIzGUVJPeobEEmcuSxsYVO4l5XwfaPlO//tIxHaAzDS/O6w8a8GTl+WhrBnhBrPUWwjQvIVSxbU8ejEzKKeI+R51vnRAoHJkD3DF6MSOJNEVDY+7y65rv+Rgid8QLe5xQ9zDzbVeRmZwlqAB/9su2eRurVnM4J6BABcdDSUiZQiiM3iGKaZN4eXD6UJQJ90y3DVnEqDAJ+NTRf1z4Al1xXQiBEJ+s1pOga27UUmY4v2QXdY581udi4ySiyZq89fImVb2qlX7JJn9KGJ/Nkm/OuHVsm/2BD/wzcg3uQRok9LEnoIAYmR54Pmh3OLVLpSB2iqHAgge1MmFEiZ0HIBmyq0kfERCJyGXgZcrVWgVjaQphA8t//tIxIaAjGDlM0y9DwmrGmWNrCXpzjMWDkYY2cuBYxWQzYpLu3M72dTbiThlns41D/jB5qE784wUAEgJLg+SrqfbMgHyYdtNIAg+bRX+AhWtVeaZaDxk4kAZ9yxY4YXSQPnbLoHF0sAAwKDBCAjfRAM4ioHAEKuoSRhbYygOiwATKEEN1IUwEWBoXB4oMBzkSfgUAtEQgwIAAYxKNhqNiZptqYG9AgYrEWdSPMRaGojNmnpMQHLnEb4aDMRTMayjk6tEl1LXtl0pjVtczfttCJilylc7RU4MGlzXilV+88DlRPtF9fn75TOaBOnyn/nP///nJP/9lQRyoYws//tIxJMDjZzFKC3pK8LOGmKJ3mi4sgCoyzvBAIjmp2lgBgBIjhGiGkCoAaAhgyCJpiZIjDi/ivwosETmdEMEIaaTDizyPBhAemLBI5iGmjghCDKgJIcdBDHB8aDhQhUmOCwVIgdnRZ1IYUwByeRFJZJlrPS9hlxQRA7TUiYmrex6GlEn+nYecpB2YcLOXQXQSe3Myl3YF7WrWY/KKJo70rVv52KsegGRZoYoJ6hHUBBmD/2DQ4c/6idn+S/s/y7//lla5Wm3IJQXMKYjTL2re6BgwgWhARcytsi4AcUHdPRkAPmnGgiJpMfCIHM8I1h05i3DSiwlBYRYUJkP//tIxHYDljjzFi7sT8JAl+OJ3eUoqy4GuP0h5SJyl0zpPYbKVyJBkB5fVZMDTQ6AF1QwZ+oAe6WLqlcFRGGZ6jhcqpbHv9X13VI8+quP51J29Mqy0T6/lakl28qgl9qlf///R7///+rZ6dIACAAAAmHa12PMxJQQam6gOAzIYm5QwHDJYHUWtrAOgBgx9zgQOddRJQ8yqMNIuwDgS1nBIhlhEsF3i7RCHmU3h020CAZ0lAwEYYQ1fKorWgJZOg05+5MLAmXtDaVg1iBI4w97xFRvj5+MLyY/W2IZOj68ML+7S49PbrA9i9n8W9Un9////6P+323b//1fiLFp//tIxEiAkjDDH05pi8I2mCPZzL3ocSD745TLzFgGnEcyChaj80tg6OQctxIJORADvJAiyURxeuCQoiEXoFxZTpUYjDYc2YVtNkZdxnhPPGy8N6srp9kiAghitEiG5iihmjs7tQVAQ0qmc7M5RP8yWhbO3RuUzUu3emK1542+wwt/V2Gs2LEBV/x4zlAjHP7Rb/J/6Je6vy5OoMnP0+6R/yf/9VUAKWrVaadHQYdwqSYTernYOBhZxQhbF+3CZWaMYEXiYHIXeHAodBGkadg6eawXRSHeshCngEPGG8xJMsRDQcJ/LkA+AzgNiplPY3QWxHNMIsmc4DXUe1Os//tIxCwDkKjDHk5p5cHnHaRJzKF4Q3hiqthoSiNVkkh7i2xIlfF1l5JbTWrmaDfH1aHHf8j2Se//+5fb/9X9fEf7eMxrUUwmKdBU5gICrGRoUyCgdEgFbZtIYmICwsbAlFi4AOVWwwQLoqRJQlcK3iJA+jdNPfZ5EM3Jdlt6RjBMG+FDMOysC8zuUnxJK5+o9/YjYuUUvHTAPwohf80UfUdybNyKnL62ug+kn+f4IeK6k+if87T/3////+oAE2oCV2ogXkMGBjphMx8Jl92B0ySIUb2DLUlTKQTE5RBlHYrESpxZV2r1SdoIQH8pp3sM6Y7t8wLogjqKyOm9//tIxCAAEYEnLHW3gAo8piw3HvADLODx48L7EV+Y/1v6jOtQYUXW81vfGIFM7/3T+Dj0xNR7fb5WxKMFWPXpH91idWOt51B2/fx4GImYavZ//Xw9QY8N+z38B3E/DM6XigCyM1kpRaslY9XdQAAOvduvpUMaMVCLSJ2l1H2U5wgylOgh/xgcxdE5laHgpTcuvFwZ1GinEvBCE+P8V9SjnK91HUDFiadsiMmbo8X5onK9XtUzjVM9Rs+6a3vKEMzJPeedTwIu94lj5ti6ojx3mbX1pXsiMvBkeW//v//XX/9/SHjL6JSPv9keUvrER3AQqtDUGqkAUm4AW03o//tIxAWADhU5a7z1gDG4pqq1h61z6doZwUIX1q1cSHIc+w2CZF4Bqg3gPjVEVvslnx6BdtPyi4vRHz71SOl+QNPa57IpjuyD2nevnhFd3TzS7Y0IWeiBCJjallv0tRp2XW98/xMPNXtOMWvb8HD+91kr+E05fVSbdaq8IJABAAACVA7Kt4aJTvbhN5xxSJFYlongFlUwZjNGkz2ZFqGySRgg0d3GwVFo8aEih/4zqAh5XWn4BSWq9kaJemrFL7Vq4/m/9/8E/b6hr1XSTp2I1Mwo7+JulYUX4P6v/B7/bH8rtd54wNxsODaMUgBgAABvga3ldjwIMsZntmuz//tIxAmAzKUlU6w8q8mJJepRh505xoJH+kp7hAnBacHQdA64RGqNa1DgA1IigpsqEA2tMqRHom1uhvnkxu/k06QMxYUXF2sdOYfe1Esj+mkAKYkOdj1VdBvmFF090LVL/P6fH/FiYNggAAA5u7rEDLVa9+7Y9mMa3x1QILN458HaFnZzSrxM6bgNNuUsDZ2FZKfej4E3+/cu9F25TQARaSMIkFkBwcKIEBfO0SYOl/JpSD+uJkRqOYupebz96aOh1F/u/X7Pjjko9ax0ACAAAI+Blz+dFkJ1y61aepX5H6zg3hkVmjMQaYrdlXdeOyc9RZro6TwCtolpEWOD//tIxBkAjCEvVaw8q8l9Iuq1h5aR478z2htp8ECjQcfW/FfC5ISZmI9aqd/J4EYmMF06CyY0h/Raeah6pT5vL8vVBNUIUgFAO8D//vCZSrI1rtpONce/zZ+lvSU+Td2dse7FYXnDdFKB4uNIVj5NRdLUp2D14rlvM1KeJ5Rd6UtbWsXaxE5I7R6qu/v4DzvGH2/UOey/udUJZt21d+LOw/6CKJVsQgFAAAFOgPTPQspALYnRTpMtSv9uqA/FPFWD1J7Ps9LSsseAKXG9sGa42d0U5fNZzKiUpAmoAopzHHMrmEGM2d0f7OmhbniQxjRcTX2tY4s3QmWq8q6m//tIxCwADJErWai9SdmPIyq09ZcI0J9W5/lS2pHNdCM1SscgCgAACTAY+IcgAOAMC4ycs1UK3GcKYb5fHihTpAUptTLFEVFU5Au63gZMfpexyD79u9TpWNTrwubFPZ5GTiR45or11fEVC4/38Is+MB72YpHiAn1cU18rqj006u3GYu+ChFWEYACgAABzAfr8K4WOsG4mtM9eQVuMeGOBMmkl2A3RtXMOLtFxngK2IhedDtS7Ym6mmMCldTKkjmrPyN2LEve0fxWsToqF2MV6O1H83qETtlCenfk3Tr/R1V5tFtV0fVehPrYmqhAAAGAKYDLerdwlIgw1nWEd//tIxDsAjH0xVaw868GBpmr9h5V4Y4Nv58o6104uZZFKIhc7VuVOQYwNN+3QaJ010w0yIYUfn9mQrPP5CBR4VddzzeIKHYBEzvrUUfzeBXvQGX3Xj3839Bykxcn1ryehm9xdlVQJEAEQAAAS4D+7zripS1MF5WNNRFbet20ULXLo3lWG7hEOTxHSNo5LrMHDgay6W4aPKC+rvk4ass/ySu1/qts4bhIrhIc7ry0d+q+Hnbhtn2TGiHyp+46egosjFiE1SCtZOukdAAEKUD59ZABYCqUdnBuSodvkydglrbcW8K4muDCiNR+w2oILAnlwdh9tzvSMHfvWW4+D//tIxEwBDGj9V+w8q8F8Jir09ZcA6XO+RKdO7G1JxMByJDKDUqlRj9U8AXfUHt2XUOff+p0ZnWnq/lfdW60FFah6gAAAAbcB9/GQMYDSc0c4T2Vg2/fTmTXNKHqHcs7T7rZ6QIwL9y97EYjYcsI8wvHq2Gw4NfwFjiiJNmkpZHFdbLsljPr4fubsTI1RIXEaCQK3KKf1Uj7tbVXNxhn1Hc4xQJBlIAAW0D+8vB+A6mVvPFIIgVfpdEj+hXnbQVD/ZUx18/4K5E8gufsRhwXC3KlSY/FYBvRazeUjMTOsXv54QZWCj2ZqHp+TwT4bZsxsYArrUy19BhnagcmJ//tIxF4BDFEtWaeouImBIus88RdASUW8RfE+NQUGgxAAAAAOYD/w36QSND9M9cRuCpCg/dYOwlMXM64QwZ87il5VbCagbsyUpgzk0mFuAhRMs33o3lW3TexbIrf873Li4uU7D7q1FqJP0XweuoP9H4u+tNOyEPofP1+RvF7XEXF6dxmgGApAM9V8cy7IsevQ9UabQoH27hDydkusSx4lGSI8uUUyuM+3NjzrSfpg7DaSTTsvo9/i10OK9qj/RblqBveomYraIq7BrIjUZ2Z9a+Cn40jvxq8j+v9GQVon9vGfEI6xEFZAQAAIcgH/3elzA5jWrtO9T/kfmmT5//tIxHAAjKkxWew8rYGKJGr1h5aQLus2aF2iyuseyxlPzUDIqxY22NFp8rhEfVb5S2J6hPRNmvHpxwuLqaz5ry7+nkVOWeuhV5wqujUMzHV5QspK6EzU9TuREqLOJ82sjbXghoKAAAHKBW3twfIVZeqM6KHWFneRWHAQBWxznL+ELXUEv5qZVqqLoCrjkmONCGPq2yWE/P7CQTrbdgxQLdTH7xQDhzlC90fvIv7+IbZQtb2PyZymiKBozZwza1AqhJ/moPqMpgBggzWGP5sJ5XK5pP5iZnK1vMaArqtlfyuNXsrEonzMiO5Zpa7t8gXzla8t7uaAtCtr9qzF//tIxH+BDNUzX6w9S5GEGqs09h6QaQoCAxhV+axmajk5hIRfGCCENuZzO82hP1cY70ln6I+hWTN7CwtVvaizizBioAIAAAJ0DSNnFdAXEWFMwi3jFmchwDdiLOLBEPoatg2LYRPbhdZHO0GHFy7yozw3mmW5L/eLkzxiHvEeTOSswQNJs3bLcr8rOymyv+JJes9v58x1Z871bX/0eh30LtkVGPAAAAAAkAH/y3dUqWUgRo5qEOes+pMwYvEOqS3C+vJ84di3I1dpxncAIzlVyXKy6XbkxlsUb9yhRGcj2G3qcCps362+xG62FiqJW3w6O4i2g0GTQyk1MyHx//tIxI8ADFVNZYewtLGFqGo1J53rUWlXtlS5AjAuAf/c5kydVEu6tepkwWTxmUvyuwH/ZY/UukjOx5FeiYooVMehhieNZzK5PnMgNvz9YwMimmZzOB9l6PWfMAZ0KPHiwGeiVSZIRaRd6B6tRCHmB37k37e4NFDlZEXZd3MO/Nn7+EQE7///5OpAAAeB/6xuAWZv5iMwltwgluj+v+uRTcMUZDNP62RGVH2NLbTMbhDcMKHiQsCH6chvr59HuiD5E4MGjmwl+GCoGuJtPjdb2qGwwF1De0UtyNciqOyXLNR//+7JIvO2AImZqOssjngkeCCzvKB0MclhAAAj//tIxKCBjBDXT6w8r0GzGuhph65YfAf9StKSpWWbbW/SUjdmKzE5TQeXTfaURV4CENLPJGWzKo3cQLCB5qgqU657T4SC6wpQSpZr0E83tvskwXFy6eyy4MqkU8y7HZRDe3IVNSh8I4VURAIxndB/0OU7Ff/+P+hx/+ZBl4MoBF4oYAAJ3AH/rOPACpW5zWcx+Ws+aPLWFzbRRYVB2Cn6Zknq52oTPTTYNrZLaXBPbQxAR6WPIAyNNhWheTHDxBMK7lK3nqzeqqrz3UQ+ouf+We837lqCE0XHqVUiF8nlZUBfo9wArABAAADgA/91oBOntCglAp6CdCwDQ7NL//tIxK0ADZjXQsy81IG9JOg1lIsAWbkZLjrNge2GmCP7RqVQJUapKCEVyXYI03L4FZVOR9MTMDt8Ngel0DRXpH6+qkFfGm2bDXZzsJJnsXQSTSYuHBTsJAz3w6oG5a7KVQIyx7IWHHHJwkHNQrw0xkwIYbO67M19lnQKsoUKkTzf4KMOmleHFqMKLmEeuQLpifsbQTz6q4yCnGlq9jaEBRela7+Tl9S4FLqHpgShTtOVf9TuWpjbhVBGE1qEIlKiqkS0xq18RXAAwBg97KFxFFdv/9qryRd3IprxtUVsHAU9+OBI2BgHbq/JKEwCYAgTMARNMABcICRsIJmw//tIxLKADJzNQayxdEGRF+d1l5aQUgUAiGOBhA1JWkBmuWoql5wCrMEDLknKfAFYAxiQJlAIFeDy5OcDBUJZg2AJGCTeXqoCIIFVpi1gYEEh6w5ABMoRMGEfmXMUXvIqSPMEOUyWYbZrnAUZYF1NlcVZCsYqwIS1FjxG0IW5H88nmHEStttrf3aBE3mnkCxH+kPf+eUEPsQ+7QNA526OlCUDgVual5KLmJHQ8dxeCSQPCFA43sBogwosqX2BjGNTAAFhgTFgpzSUOJBEOVD7A0lFAGvFkAXCAo8piYoqnG3jPjZllzNaixELBWAxAJqDMoIQnmCEJVz0tp4D//tIxMEDjyjfMC3lD1KFG2RBzT3ojUqX3Fp+XujF1dyeEzueEzVtOW29zmrediUc6+kapKTOs8+c9tATFhIFEvM////96ejVfkTLyG2aMTBhWt7H6W4Y0CwcEm4qCpbAYTGQmqAhrgL5IAgMjBci4hnVLnohBxuHxlQNlUOCVI0FXCn82gNLMnuKHAAJQzrPVljooAAXgtxuCRw8s6QwFqI2qkvlVqgxXjSVeyDPLVbO7FCamREYvUJg9JMw6Vf5Lk2EHBwuaxCe9///9P5RABgN6m5QVQeZWr4YC2vVVhgoGDCAGT3aG7YoAWIGBGAkS0JkUWGPAGRtbNQ6//tIxKcD0yDDJC5vRcIfGWUBzSHwS/dcWgUoEdCAutMI5NMgIEhlqZLMdNEplPbsPIABokGGlCnICE2GxaSt4wYPVRH1lw4rdV1mXW7pUDr+wt/c9LEpUY0250zM9LxruYo7V3tV9B/QBBwHd3HhRcMCUAqgJm1JNCIJIDnti8IUNBoAMDrVgj2LVjwxMDlJQYeQ8IhMFklomCkf4LJ0xZQ/4wE1heb2zIMUHjoeldhkyh41W8sC5W2BPPYyxiFjcxYtbF7IpJu4yRtRcHP1BQcqZqFDYElXYD5QFw82erd/45UQAAUBy5Qv8OA80nny+6bUOrfMBhQDGt15//tIxIoBkBzPKk5pjwHlmCWlzKHoK8TuiIMmAUgPOJI9LK00wFNWsAbJQBWmoiwEmMnrAINhg9kypS97GEJrV1lESUmHPrfoH/R1QHyzkOwGweWTtHjKreo1fy3okYD99uWdd5mG48OcQrGPzPk3fz4blqpgifjxt3lk9Rv/xuGVWtGRUHG+sMj0mjPQOMA0aQT8thdB0zAgKMiCsue9zcF9wseqXWCIKTZGzp8DO8XUxtSiivqwx5L574iBRhMKe/K6Uqniz2yS1ESYH0eG5Rb1nfF1GspRU1HMx3fUNdHQBRWVYGDzSMZtuP4ZEIUOid3kbuVVABVwAllV//tIxIAC0Gi9KM5oz0nYGyUVzBXo0y66dZ/+5QIXOxJiSeosOo2eSGTLDGZAFifKxXlxEpcOJwN8yFGENOCU0T/jotPjkb2Qv4aMZQRWIkKrcWKKwK9obImn1/eeJPEjV3N76p6zxbQ8xIk0eDGgwd7iUjP5bN93rPukFsb5VXrMN/fcl4/gS3T8RRz6pEgUpn4kziJpbJIAAABoFTCmEyDI/j13cAACuIBtoKCq4YCHi90iJMsOKjKp91UlzDlxEQHHQZMVYvNWCHD/XWIazqBwOOfBFBL8yxR0U294/TvhG37hyC2/A4YMEABIC7ay/zwWaWck1HQSC1bA//tIxHaAESEXNHWngAL1pek/NZAB0ZoLIcxbBTeklk9K4dic/ep7UVqNzgiVR+NKDyKHKzgUVLK4vQzFqhz3WlV2ck3LFnO3zLaKaai7JTu1L+Vc+Zb3rXP///9V8u08rsc5//8CcaxCrEOxieQKgBAAIAAJcoDLXe3ldBWUVqOUzKj6OSQMVvUEFAOaPTDnWiS8Es7SBHPrWJcwsO1A8ESebb5kq2YzKVmiSPmexFG9vXQs52VyUsY+cjuFPfn4cmKWP51Y1NUurd3DKYxw7nT01bXHpb6ms49eKl1ukry6npLW3ZgrU/K45KdZVqTDmVHB7ssCjd6ktXZd//tIxEaAFAUnVb2MABm3Jir1h53olK5qo++NB+26SnmfcIDm8Zh089gwACAAACmA13DLhlAyljt3023XUQwprjhALhY5kuTAIYM+MHA5XNOYZIYDDM/hhTyxY8JHDlxPCgAd1WfzR4BddvZYEGzbtkH1NFGSH6tc4d7mtxCStUTl0v9TG0YfXR+c5DSnzm5RmQnZ/U4t6FIAAAAAloFixn3woUulGbOaqLZXNvVazolx41bttkYgq/JtrFxyJfGB5MpV1208U3EcmFXCJRqNzcUJjacaXLFiNLivg7fjEME8w1b6Dn4wc2FhyfDiL1Z8ST6a2sOR3oyv9uJI//tIxDMBDWkvW6w8tIGRIqu1h5V6yFanMcRjDIABCcA1b5hgIzJwSHPJjKtqB+Odgkma8+DSGdDLrtvOvR8GXdY8oyIyk3CMklmfZsViCgRd0Ibmt95/3IHRowIHY15TRAQ/6hl8zercTHdi6oveQxFHM8z0LwEJEkLco31ANUEIAAAAAAASYBenBBwtDClWbCmhcK433Y/yjxBmUwYRjYMDEyGSxgRcJNYkVSwfzhAaSS/HkIxZvdWhEviu83g7zt6PQgH3N+N+/UMvh0ems7bP96U0eR1Uv7PxgBOv55k+VI5jAIABXgb5lS3CEjYr+8oJQdYZMdYMz5mb//tIxD6AjHUVXei8q8GCKGu1h5V5xCjW0o5m5D4BmlyhV23DLip91DP4X8ab1PRYX6+U2NOGL6nljxhywRUR+9BT79AzwoevTxhvT/JNiIsbrN4wlNEfnED/4jMqZgsAAAAAABNQHukmCdC0MculC4FbxvqIwc40mRdmnRfZ2tDIh2hkQHe+lVs/dvC4p63ouT/Wc77wdM95Myb+5hczi9EG9qN/0DEpCbe7nw+O9E/QVYQaMMXqxekVK2cY0qGgUIAHsBuuBCg3A27koDY6V+K4N0fVsaPUNhngFFaAn55AKLzFm0PqkjvZzigmxlSjTht7nh8JekC2mL+N//tIxE+BjFElXei8q8GBpet9J514DHDXDE5Eex80inX0DkbERvW+RX7fubMMnNfoRfOLt2OOO5Mr7HABgAAAc4F7LeWIXKr2L/m2JS1T/NdepYXGUU7dV8Z7ffGxU4LCXBtoSealx64qFdP2ITyM4q7QIWZnmu19orsD0ROk4z0bjAy2PVep0xhvVv7+rW8z9RXovzhxmRM6jgBUB3gWtiuABYFcte5ZGKR+s6Ywbz5XIIzyBauoZ6p+HYJ+dzj0Gjc9pqo0Z0e1Wo9E2vb4BWj0suoXNRZijpmO3qX3bUKa2HR/tLnFPVqt9TVXfqTqopzERLlExxP2KohA//tIxGGAi+0vXawwssGDJau09ZcAASAAAU4BeF95AdwWolvczGAtfilQrc+Me47psGxS6sse51Q3K9FhpY3UJCzIziq4KjELzwGmNVLXLkp0fbK/qWd9H0EYW1d4lInRmxeenP9OWsQ5Xt1Fj9S9A52wYmGVv8H0OgCAAABJgL39cADAL8TOk5ZEyIr7xoN6TNkmEISmy3zaOeqdCIYYmsCnYM27CdhLdaq2HslIGs6GbHtmFTV53Q8pgBuz7LVPvxgbfD7LzK+EFN2f9HuygpFyMS7qxH1PbM2QVgkgAAAuAY9wtcS7A7EcqSegxkRFa1RmCZllsnRCHDaG//tIxHSADIVHX6eoWNGKH2u08otIzyKyMvDp09pdaWaxrMprb+fKst2vYx8RfamvPHZyCXN0y/9Q2+Uf/xjff/iDOIJUmh+kU87+OFPkEnOpaua7tFnUIgFAAB3Adz+p0mIEPgZlSxo8g0PGsQNpJjXx4qQByJTA9qQ0/FO4NONr5IHFw5xEecnrDlMFZndepCNxsW1E87wXKwD7O1lwz47jQbwkROeRp0+/rshj0Wno3MOfiJe44eqMWnEAAElzAa/vybAXCZjeLc3BQgEYZABrs/CaTVEQglqN1mmlmIGnLTJSuhecHb8yQNdcgL1MOpbzchjCj2dqJk7K//tIxISAjFlZYaw8q9GKpau9h5WxvKCM24qnESnxo5/fvoZDC5kchidF6HeRWdFZB4X//sLgoQgMAAAAAl4H+6XBigw48CdeCkCcdGF02TeBJpuCRYilC/kR7xEggIjHmVOJs9MaQ8pr47aYLuk3gKPQh1LK0cHqgeaytXRG83QFZ8LT1VMaivr/li5qPM3V/H+MfsUVeqzmWiAAUpMBWuM4C+AhELgSrwdwlILXsT0MhO7KwPF7CQvk15gDmTOpESFFoNCE/kpXiuQPsTh1LTVow8lnXaNfM5u3m9AL0RxCN7akBvcQj7ncsbbylWZH29/MMfQ/cdEoRBe2//tIxJUADG1PZ6esr1GEpiv89ZcAiyLLABSluA9syZDNLyMu0NqO4tLvMLg+2ZwczvKH+WzFvoSuH5zKy0Yn/6ZVqshADDNbVZ4qpSorv2f9V/uVvXarYFwCRXzQdDWwJRRRWCwV9xhXRrMo0pjNovoZeHyER4T0jLXoBgAAAEC+gYr2CoVRtsofxiD6FuzFYrmiFWhStcZDKJtGM1dnw4k1CAZCtdw9iuWeJRP5p11ws8u+wvitGuvlsXBSoGFU/Krdm5RJej5eZkBiH1Tt1aR/9b6Oyo5gtMRtLIAIAAAKUDefxKHk7URCIf2KCVPZ3LUjEsLbjk6xuHmL//tIxKYADJUzaaes75GTIy409JYz6YBInkE0RgFWBxj1TpiZYIIfPhghEaV4wMNpOpWu9DcQVax//7R+3cXdcYyvoXhb7yvVvVUeOEz6Gep60erUfChwg6o7gEAAAbQP/J9IwspAO68Qao4D/NQ+h68hNJKKpAcbXo62aaUmnH3rYFY5UV6aWYivE2BosqP+AgFm1L2DJ7zumu/HLpAxkEv0oDflfQGOd6Juv6je7/4iooGQGRDPqX/9UcBYUJBBgPAD/oJfGi/LU2cv7SwGosvSaqw69RNgw24vQyi8WbT5PpJdcKsI83IbAbknETMWpkkmpiC1jIQUOJuG//tIxLSADA0jXaewUsGTJir1hZZiTXM0PUHHrFEajXQq9qoP9NHEFWxgIZ30MyKKeV/5x3cBegAID/1ndOGxakRXe/IqWIClNYHh9LxxTNMKBmkNdZMW+kjWBEquhf6szhppnAHTA4Z+Imjq5i+4o7ipzEBlkgkyjY6ANDvqvU2EgDRcgJZI91ctFSaHROQUxmSYpZY+yl6flCT075BFcfWonNdsjrVsvon8rDozjjlz2oGyCN3LTdTBB05DnDjItcoOGBRCQmCAwcMJ9lvemChpq5YLTEUKF4w+JPg4tQwsuYQoiJAEDWlAhY8OXMx1wkOzUCIdCa6gyIhY//tIxMUAjHkxV0wwVJGDHqn1h5XpBCYDZhEXALwg1pKCB07GCLbYKzd/WpNeZa19Pm3AL+RVsDFJW/EXgGpTR6efWRGEQqXFY2lB9BAFTEhDoOFicjLrJX+hXyxepWmfk5sA6mZYYP//VroEZgggAAG7AfvWMACOABhCVDxuO2FmTu2JddiBiBrdbk8tlR1EqlWzG4mxm9BYXARkVRGQHmLXTBYGSp2p8F5Db3OHlbbMPEC6fhhY9maRfGN0RVjQRLCyCRYsW4hDp0Qq8oS0pzv/yjrPxCABgY5ULhEoDM0x9CTceeBxkPkAOKAVFnnbkhyMnrIIGTgOCIgK//tIxNYDj6z/QkywWJJ0nqXFvK3wYPJoCAyXoUDSZzG1BUo0KTSgxL4mo69XbKwCRW+TzoBobK0T25uMmYIAtbWnF5LQkI0oI5DM1Dzby+GngUJLnyOK5uRKgb56ZrQvrrH+su8TrksNZswYUG5QCDBxgn+W5KXd8XoAHAyqyqKiMKPw/hpCdluDRioNiweHEcKWFGQEKA5rleJR2yruHCZC7BQUaKgUAnwFgAAJBgMANjhKAoEGgDDFEyoMIhhZxDZ0REWb8WDLRZAsouQu9c1uxGyUekKyiE7TkVY+0calFljTK6M8oDkt7WGvybFP//Hjmoe5dfZm0ahf//tIxLwADWzPQ60wtIIol+YJzD6QcZVHqfiMrHFiBjPqX//+jVajdPUB5anGvFpTsJTIkRynqSWKgqGEZhAU4rThEAmHBRvcAEDTroTEZzCT8xAFFgUxNnIjkQggNNA4QMLCjkW8AhA6FpEfEQBroVA7af4qEVMx9ONlC90jipFdcVYBG2GJFyhCqKMKSummBNkgaclylT8UjlQf9fn6lle1Y/sh+lqVZh3otB/a8luSz/33edmzjaOWP0qAwTA862Xs4sLBgACgovaYIFmUARnhaNCCdo0UGarx5nWBi8UATCwAwchFqc2kpTMMg2xEStJHQwzAQMlUzt8Y//tIxLSDkuEpLk3oT8I2mmWBzeC4xcBMukRKdgxaUxpUHF2GDAEzkQ2FpJAHCHDEBkCmTXmBIk8EqZYKm1hkZ27pAwWXlhsZAwJDVZ7ZW1lmSumXP9d5ehmVQqgp5RMKZskhcslQoCQOi2qLUddjuf45bx5ll/////////yt/zmUUGDiXGf/lxJ4PsBcldIrsvYbXxoYiAcBgLQURFMFAMFhEMFgHXEhgjgAAJMxwgFljIwEIC5kxSkI1M6AGkFf4oYOSj4AI5mEJkgBlwq60zlvjbNCkiBIcTZt1orWQXesOCI1GHZI6uo3PgwXiL8I6KQkiOENr8eehl0K//tIxJWDlzzxIg7vRcKsrCTJ3Qn5Vvnptlj2T0zzDcpzq1cLmMpm7MQWwwZ6r156H5h6S3//qf/MbvO2ceLEVZ1DKwMBFxJ9OnuI//ghpQA/DeqF6hQHNI/0E7mckI6CJDMizo20HQjqHXTQRmPqkTjiiWjzVk6YSonWgcoKcuWlQoeKZU/TwsowZ8/HXgCogcbH5fVoU04Cux2didHbmaRyrofIcGa3G1M9fvcA8EZb4wTxxPU4Rv/FxWXy2Ws9Mu72qQwGV2soqFQYMIIwAwBMHQkMdC4NGFIAIGSaJNOMHAJMTRSJo3YaS4xjUCZTdTP9U5iKZSlYMdA5//tIxFaDjqy/NE3lC8IzHKVJ3K3oBCaFTHzpgiNzgQFLlziwCMa4KVlUMAl4GlqHQt3IukqwlYsYdxsatE3FZOUWdKB3KJp6WY6Ba2q4WZdFYEwimp/Mycvu/mO1D/HN5s0HF+g0pOz/9ioAAyACzWlLPhgDms8yUAl/IdbgyswuBmlvo86aIUGAoqGL34jzXzHkBYm5RkBxQKlbIIPQ9OICVRahlBQUBp9JFQhpJEGRKShoMVhkmBaU387GoivqCKOu9t6S026K9jivmtcsZ97rXLmqpsjvgB4C1iNe4gSShl01DE8vi/pJqsafNXBpZ9FNIvKswoWH5F3///tIxEiDEo0XLm5pDcH8ICXJzSF4/6GdIAeBTYy7MdBRxKfBgfTvQHssIA2SggmLStkKsIWGjoADBorGIDLiOswgQrlmQLH6YLAiMKx0vDL77PkzolM5poBBWJyGlXYKgQw8yGBZ/Nosroq85Lo1nWl42SghOSx9e9RX1faLYZAClnX9dpU389fzw3kKt99cbjyQGTaWTdUAAOICWVYmXXLXnMppMcrJj7P0n1AFrfKIZWEAgOLnUOAV8SwmxmwubDMDLSeAdQZ+TwbamRxoQYki4aCDyHKLKRFByROJWN3MiwX0i+xga5ggtIvI6LqZfZCgy66B5JbV9TJU//tIxDIAD3kjOHW5AAL0Jek/NZAB1LtUtNNN/TSUimu6BffqN/QQNGnUS5h8AAAB1GEBCBXCwSDV20AAC6Fl9pXkkLBQWPxEedxQ2oU4C5OMGGlFhEUDmpkwIKyC4iQUXOeU690vXaCJlyRtXp7qgOAxUUTo4sIpajmMhrqZYGLm0waRScFVi8Ve935QyBndC91mLmEIYghehS+B5f92nqXJBfpH9iWWNilx47CxHUnrtPDlLVopqMXrfL3dSm7OUsCf9FR+47rwM/Dbxubdu3hzHLD+67vf9+3/5/37H3+8903bpf/crk8RgAAEjAxEIapInTDVpMJedgCt//tIxAkADtTdYLmHgAGTJK23sNADbAlWJ/J8RdLAZGC+QgURBqG+0ltCmLI3h2lXDFyGeQtmHSlkLXTecxSl+GefC0uUOePBkKs+XVLlFOkUY9s5wYvf28WM7ny17l89vne/04/fQ849P3+Hn+Nf9g8sgQ/o06mXj39mkFQgAkuUBlDrao9p2EpC/XeakDUbO6WWl4QJFIc4xRNUEygQlmiaAtUTSsnFFE2pD9SyYbqPtJQ1dBFF7LWud3d6udf0Ooz+bXWumhUkk3SXq9M8sxWy9tE7TrmiqqzZ/ijxKoMEEABgAAAOUCdpbu6EQle9l+FK+DQSs1raYBhC//tIxA6AzGDxYew8q8GBpiv48Z9AeP38BOk0wWUmlVE2Er3NJV8akZpgKUcta4qpCPgNN9IdO22tBieeo5VCY+yPRKX8vhCTg6Oia6i7dU28aASKeLPnqjj1mYIFAAAQBjQ31kAABpK/NSoQ0Vnkyc4Wlx8yQK0Hj1tNWO1nawhlHGFlPlphbjG8JFrdMOI1sLXqPekC8bbqWzUGRgEcun2FhX8t2C8/UXr5jamN5r/NVzV2/VvHfsnMJvWEBiAAMAAAE3Aiws20ArmG3P8nsXsjvuCqRZlTGRpPkEM2pVwYaQtAE1oq4VTvNpjc8nqTH/cJcm3uJuAgalVn//tIxCAAjJ0xYeesuEF/JKw09BcLpqrXZqL9n75nlP7+EG40y2xMmgd+/vSPC0Jeh/XxgvxM78SKKMCAAABOAZx8cEoHM3Zy3CrK3FaHsTPXu3ibHD2Fz0q8zhNR2DGijSqZaZEgVW65hHylqLHgGOLVWH8jSeCL6quZmq+vhNnxqa7u1BrtoOqtMgsVWQiK+cjdBhdSA3agGqxQAAAAAHcBzuHagYZhs7vsfVqI746fHxvxkiGY9sYEZuQnDCEEiI3XE7u2n3HRZMdRqtRM2nCzrjlmi7i63meAIKoDMzCJOsb6m0hUrQtbdF0d+7t20Uuh7j8hvQRcmMHt//tIxDEAjJklX6w8q8mJJav88otZybCaGCBAAEAV4DlfNLgCkCEKRmMUZXkd75UI39QcaByOdj+cLndOfAhrYt5lIyg2BN1SBBs6zAKNz7jvjKs+xFmiZjRh7OFsk7UTO/l6At8L/ZOLev+6CA/cpHyy+BnoxnbEYY6BBQAAEAAADnAzr/vAGkX7Ff6o/dU4/9PUuSvneehnjn5sLszL1zlYoflCht8Qr15y2eo6cZ2wFGm8V9Rp6lxNSbWno1ONE73XVUPd9rrw+2VF+1q8X/b/c5t0v1Tyy062zChhZ5AIEAEwAAAq8CW1P14oVhyze22qtNI7GOf4hbI3//tIxEEADKE3X+w89IGPpiw9h5V4LJ2D6I+dDXOikjHySh7Pd+Oxaanb1PEXG9mww1ts/uTDcTGqTUmkElcBHc5fxD0HaKAirjjdrJ3+zfogm2ifUvjzdFTK4a2oUAGAAAlygTxcfAgwJxl+20lp9fWZhcCVlwlJguj72kMd/qAQ2tvDPiI2eytQj7xIu2lq/gPp4qKinGpTDntb4bzPr0DLJiYuu6GldBn0P97lY4PvaSX36kj+pPMVRqYPt//jRBo+QyAUQBKMvAj4+OYZxGHjelC6/1CHGvK48zOXhVbW3CmJpCenfyccyxUI/Cki4vL/QEvJQhleA4co//tIxFAADNVZZ6eg+FGSKy309J5anV0V9aH+voTtlG9JTKE/QvvbMJHHFBxvzm6hg3UfU048SBpjpH/+YSDiJyrwdACgAABbgWruqugoZnHalp6EMXN/PWCmjx23nfZq6UWbRa9aD5yA0aqa73S24rLoFrA5ASfsIiwXZewBeohila5um1w+XPd8/Cv24mDKfcp+lsYnq/+wdYwkOf5/nzqWY5xMVwnIJIAIgAAEO8CufaoA7JiE1JhMBstGqXP8FWwQeYZDhRWTk7ehMdciAaWrwCAs6+4ZR5Ddb03KRBNm94FLR2MqT5oKIweZZno8w991PxopfCyejvjF//tIxF2ADLkvX6wstomXJiw89ZcB9Xf9CEaiv9n8flkcuxxgqNpkVBAAAABOAd5/NFxBxjVZrsST/JqwOXcCcXzQ9YA1qG9EiIdRECk1tWRwTa51hDCT7v24wFpe/0XfwsUx6zvyaniezFO2Pep3MDNs0n6WuPEPVv6zTzEV2P6I2p3jyox6sPDxCQRmEAAAlOga3ja9NdOmBoApY8VRoVxtrun2THw1yZZq1fF491pTnElf55/k0TKP5+H8RJq0gUclW8WW3Z35xaoHRbWofu3r1/FfmCe3cQBtHo3df2/Sxpj0JwbdW3VWXMAAxSDPgwZgMAAAAA5QL+P4//tIxGsADJExYaw869mVpuy1hYra7IiM6twU9skQ9EvHbJSzEIzJVEBWh25QDSxns2GGCCY8UjEqTR6rWDuHDqLt8QBY+t6Izt5nGt50/LuxJrMZOWp//h7vjYjbS+PlujmfzY+dn1Xs/lnrXgh6OCQAAATNgN6+OG8CdXFIi4C0m3H3pEErgaufBmirgEapU+an6DQmSkS5vrLYtSqkrr23hcJpsvyB5ycxFq0cOtspeyka+OVn3R9hMPeE3XdmbET9ma/zEK1HU5r6UZ0f2fUSHuqsJkgAAFKSgVp3jeWFoOYjZxsrenSGzLAH1LrR88ZHw09xWPjkUxdt//tIxHmADKUXX+w868GVJix09ZcIC66mVS+/n5rOzaVoSvfNGrb3h4PQ4HnGjv7vqs0RBSZQ6Ko5WDpDOQROZzPLbyipWSn29Lo/m5RqnPkI5/IIACSncB+9Wn1DXBCH+j7uPUlqUXjEMfknIse9AzPH932WUedD82ybI70+zC8fB4qtzyGVu2ClepUVKzGvypknm1/wcdtq8BIbCCkfTw4ZOrf7lKxy1/o/qp/Qyt/6lZBS1QcntEAAAAA3gD/wyiCJAcA0cz3zAhUvUXGimWQ3L5YIR0fZwfDLeQQzsSnJsZYbjYq5qzu0lrDtWvNfT8864l5Q38nxX1uM//tIxIeADHEvZ6ewq9GOqix1hYqaVxMcNEi98PJzPeQeTQSKnRndxoOQ+MdHR5D5FEuGBAAAhwAYY5ytrR1C4idSebQ55LcGlNQS/tWGknhS0KHUM41ybqdjTVFM9NEDi2Xi4YXOSktzypi0Jcpa+LRzmnj48HFNwlfjDrMuoedU1m7Zr/5/+Nu/v+3/+9btvtdQ3AF8sNP8RgAACBGCAAEJhpGrMkfv8MxlrRAJSO/xokZH6EAkOP+Y45oeJUsM/wS+bQxtigUBI5WL/9fIKKCiocg+roqAlqf//LDIsuMrpeKqsWhp6VStyWNIv///2JK7j1M3V7HjgOZf//tIxJcADFDhWey8r0Glmqq2sPAC1ya1rtWM/////6tldPHCNxmj1hlLfpo1VpZTlll//////8TgmflkxYl9PbllJYl9WljNampqtLS5U2W/////////z7hhzPP7lgBh8EAD//5e5N1MQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxKSAFp1NPnmsgAAAADSDgAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
+try { const s = localStorage.getItem("maxKm"); if (s) maxKm = JSON.parse(s); } catch (e) {}
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n == null ? "—" : new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+const STATUS_AR = { accepted: "توجّه لموقع الراكب", arrived: "وصلت — بانتظار الراكب", in_progress: "الرحلة جارية 🚕" };
+
+async function authReq(path, body) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", apikey: ANON_KEY },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.msg || d.error_description || d.message || "خطأ بالاتصال");
+  return d;
+}
+async function rest(method, path, body, prefer) {
+  const h = { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: "Bearer " + token };
+  if (prefer) h.Prefer = prefer;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+  const t = await r.text();
+  const d = t ? JSON.parse(t) : null;
+  if (!r.ok) throw new Error((d && (d.message || d.hint)) || "خطأ بالطلب");
+  return d;
+}
+async function rpc(name, args) {
+  return rest("POST", "rpc/" + name, args);
+}
+
+// ---------- تسجيل الدخول ----------
+function toggleMode() {
+  mode = mode === "signup" ? "login" : "signup";
+  $("fullName").classList.toggle("hidden", mode === "login");
+  $("phone").classList.toggle("hidden", mode === "login");
+  $("authSub").textContent = mode === "signup" ? "أنشئ حساب سائق جديد" : "سجّل دخولك للمتابعة";
+  $("authBtn").textContent = mode === "signup" ? "إنشاء حساب" : "تسجيل الدخول";
+  $("authToggle").textContent = mode === "signup" ? "عندك حساب؟ سجّل دخول" : "ما عندك حساب؟ سجّل جديد";
+  $("authErr").textContent = "";
+}
+
+async function submitAuth() {
+  const email = $("email").value.trim(), password = $("password").value;
+  $("authErr").textContent = "";
+  $("authBtn").disabled = true;
+  try {
+    let d;
+    if (mode === "signup") {
+      const full_name = $("fullName").value.trim(), phone = $("phone").value.trim();
+      if (!full_name || !phone) throw new Error("عبّي الاسم ورقم الموبايل");
+      d = await authReq("signup", { email, password, data: { full_name, phone } });
+      if (!d.access_token) d = await authReq("token?grant_type=password", { email, password });
+    } else {
+      d = await authReq("token?grant_type=password", { email, password });
+    }
+    token = d.access_token; userId = d.user.id;
+    await afterLogin();
+  } catch (e) {
+    const m = String(e.message);
+    $("authErr").textContent =
+      m.includes("Invalid login") ? "بيانات الدخول غير صحيحة"
+      : m.includes("already registered") ? "الإيميل مسجّل — جرّب تسجيل دخول"
+      : m.includes("Email not confirmed") ? "طفّي خيار Confirm email من إعدادات Supabase"
+      : m.includes("Failed to fetch") ? "ما في اتصال بالسيرفر — تأكد من الإنترنت/VPN"
+      : m;
+  } finally { $("authBtn").disabled = false; }
+}
+
+async function afterLogin() {
+  // هل عنده سجل سائق؟
+  const rows = await rest("GET", `drivers?id=eq.${userId}&select=*`);
+  driver = rows && rows[0];
+  $("authScreen").classList.add("hidden");
+  if (!driver) {
+    $("carScreen").classList.remove("hidden");
+  } else {
+    enterApp();
+  }
+}
+
+// ---------- تسجيل بيانات السيارة ----------
+async function registerDriver() {
+  const car_model = $("carModel").value.trim();
+  const car_color = $("carColor").value.trim();
+  const car_plate = $("carPlate").value.trim();
+  const license_number = $("licenseNum").value.trim();
+  $("carErr").textContent = "";
+  if (!car_model || !car_plate || !license_number) {
+    $("carErr").textContent = "عبّي الموديل واللوحة ورقم الرخصة"; return;
+  }
+  $("carBtn").disabled = true;
+  try {
+    const rows = await rest("POST", "drivers",
+      { id: userId, car_model, car_color, car_plate, license_number, car_category: $("carCategory").value },
+      "return=representation");
+    driver = rows[0];
+    $("carScreen").classList.add("hidden");
+    enterApp();
+  } catch (e) {
+    $("carErr").textContent = e.message.includes("duplicate") ? "رقم اللوحة مسجّل من قبل" : e.message;
+  } finally { $("carBtn").disabled = false; }
+}
+
+// ---------- الشاشة الرئيسية ----------
+async function enterApp() {
+  $("appScreen").classList.remove("hidden");
+  try { pricing = await rest("GET", "pricing?select=*") || []; } catch (e) {}
+  const p = await rest("GET", `profiles?id=eq.${userId}&select=full_name`);
+  if (p && p[0]) $("driverName").textContent = p[0].full_name;
+
+  if (driver.status !== "approved") {
+    $("pendingReview").classList.remove("hidden");
+    return;
+  }
+  // إذا في رحلة نشطة معلقة عليه
+  const active = await rest("GET", `rides?driver_id=eq.${userId}&status=in.(accepted,arrived,in_progress)&order=requested_at.desc&limit=1`);
+  if (active && active[0]) { ride = active[0]; showTrip(); return; }
+  $("idleView").classList.remove("hidden");
+  updatePresenceUI();
+  renderRadius();
+}
+
+async function checkApproval() {
+  const rows = await rest("GET", `drivers?id=eq.${userId}&select=*`);
+  driver = rows && rows[0];
+  if (driver.status === "approved") {
+    $("pendingReview").classList.add("hidden");
+    $("idleView").classList.remove("hidden");
+    updatePresenceUI();
+    renderRadius();
+  } else {
+    alert("لسا قيد المراجعة — لازم الأدمن يوافق عليك من لوحة التحكم");
+  }
+}
+
+// ---------- الاتصال / الانفصال ----------
+async function togglePresence() {
+  const next = driver.presence === "online" ? "offline" : "online";
+  $("idleErr").textContent = "";
+  ensureAudio(); // تفعيل الصوت بضغطة المستخدم (سياسة المتصفحات)
+  try {
+    const rows = await rest("PATCH", `drivers?id=eq.${userId}`, { presence: next }, "return=representation");
+    driver = rows[0];
+    updatePresenceUI();
+    if (next === "online") { startGeo(); startRequestPoll(); }
+    else { stopGeo(); stopPoll(); stopAlert(); }
+  } catch (e) { $("idleErr").textContent = e.message; }
+}
+
+function updatePresenceUI() {
+  const on = driver.presence === "online";
+  const busy = driver.presence === "busy";
+  $("powerBtn").classList.toggle("on", on);
+  $("powerHint").textContent = on ? "متصل — بانتظار الطلبات" : "اضغط لبدء استقبال الطلبات";
+  $("waitingBox").classList.toggle("hidden", !on);
+  const b = $("presenceBadge");
+  b.className = "badge " + (busy ? "badge-busy" : on ? "badge-on" : "badge-off");
+  b.textContent = busy ? "● في رحلة" : on ? "● متصل" : "○ غير متصل";
+}
+
+// ---------- مراقبة الطلبات المعلقة ----------
+function startRequestPoll() {
+  stopPoll();
+  fetchRequests();
+  pollTimer = setInterval(fetchRequests, 3000);
+}
+function stopPoll() { clearInterval(pollTimer); $("requestsView").classList.add("hidden"); }
+
+async function fetchRequests() {
+  try {
+    // فلترة حسب الفئة: VIP بيشوف الكل، الكومفورت بيشوف كومفورت وعادي، العادي بيشوف عادي بس
+    const tiers = { eco: ["eco"], comfort: ["eco","comfort"], vip: ["eco","comfort","vip"] };
+    const cats = (tiers[driver.car_category] || ["eco"]).join(",");
+    const rows = await rest("GET", `rides?status=eq.pending&car_category=in.(${cats})&order=requested_at.desc&limit=10&select=*`);
+
+    // فلترة حسب القطر (إذا في GPS ومحدد نطاق)
+    let list = rows || [];
+    if (myLat != null && maxKm != null) {
+      list = list.filter(r => haversineKm(myLat, myLng, r.pickup_lat, r.pickup_lng) <= maxKm);
+    }
+
+    // 🔔 تنبيه صوتي + اهتزاز عند وصول طلب جديد
+    const fresh = list.filter(r => !seenRides.has(r.id));
+    list.forEach(r => seenRides.add(r.id));
+    if (fresh.length && driver.presence === "online") playAlert();
+
+    if (list.length) {
+      $("requestsView").classList.remove("hidden");
+      $("waitingBox").classList.add("hidden");
+      $("requestsList").innerHTML = list.map(r => `
+        <div class="card ride-card">
+          <div class="row" style="justify-content:space-between">
+            <span style="font-weight:800">طلب جديد · ${r.car_category}</span>
+            <span class="fare">${fmt(r.estimated_fare)}</span>
+          </div>
+          <div class="divider"></div>
+          <div class="row" style="margin-bottom:6px"><div class="dot" style="background:#10b981"></div><span style="font-size:14px">${r.pickup_address}</span></div>
+          <div class="row"><div class="dot" style="background:#fbbf24"></div><span style="font-size:14px">${r.dest_address}</span></div>
+          <div class="muted" style="margin-top:6px">${r.distance_km} كم · ${r.payment_method === "cash" ? "كاش 💵" : "محفظة 💳"}${pickupDistTxt(r)}</div>
+          <button class="btn btn-green" style="margin-top:10px" onclick="acceptRide('${r.id}')">✓ قبول الرحلة</button>
+        </div>`).join("");
+    } else {
+      $("requestsView").classList.add("hidden");
+      if (driver.presence === "online") $("waitingBox").classList.remove("hidden");
+      stopAlert(); // الطلبات راحت — وقف الرنين
+    }
+  } catch (e) {}
+}
+
+// ---------- الموقع والقطر ----------
+const RADIUS_OPTIONS = [
+  { v: 1, label: "1 كم" }, { v: 2, label: "2 كم" }, { v: 3, label: "3 كم" },
+  { v: 5, label: "5 كم" }, { v: 10, label: "10 كم" }, { v: null, label: "الكل" },
+];
+
+function renderRadius() {
+  $("radiusBtns").innerHTML = RADIUS_OPTIONS.map(o => `
+    <button onclick="setRadius(${o.v})"
+      style="padding:8px 14px;border-radius:999px;border:2px solid ${maxKm === o.v ? "#fbbf24" : "#334155"};
+             background:${maxKm === o.v ? "rgba(251,191,36,.12)" : "transparent"};
+             color:${maxKm === o.v ? "#fbbf24" : "#94a3b8"};font-weight:800;font-size:13px;cursor:pointer">
+      ${o.label}</button>`).join("");
+}
+
+function setRadius(v) {
+  maxKm = v;
+  try { localStorage.setItem("maxKm", JSON.stringify(v)); } catch (e) {}
+  renderRadius();
+  if (driver && driver.presence === "online") fetchRequests();
+}
+
+function startGeo() {
+  if (geoWatch != null) return;
+  if (!navigator.geolocation) {
+    $("gpsNote").textContent = "⚠️ جهازك ما بيدعم تحديد الموقع — الفلترة معطلة وبتشوف كل الطلبات";
+    return;
+  }
+  geoWatch = navigator.geolocation.watchPosition(
+    (pos) => {
+      myLat = pos.coords.latitude;
+      myLng = pos.coords.longitude;
+      $("gpsNote").textContent = "✓ موقعك محدد — أقصى بُعد لموقع الراكب عنك";
+      onMyLocationChanged();
+      // حفظ الموقع بالداتابيس كل 20 ثانية عالأكثر
+      const now = Date.now();
+      if (now - lastGeoSave > 20000) {
+        lastGeoSave = now;
+        rest("PATCH", `drivers?id=eq.${userId}`,
+          { current_lat: myLat, current_lng: myLng, location_updated_at: new Date().toISOString() }
+        ).catch(() => {});
+      }
+    },
+    () => {
+      $("gpsNote").textContent = "⚠️ ما قدرنا نحدد موقعك (ارفض الإذن أو المتصفح مانع) — بتشوف كل الطلبات بدون فلترة";
+    },
+    { enableHighAccuracy: true, maximumAge: 15000 }
+  );
+}
+
+function stopGeo() {
+  if (geoWatch != null && navigator.geolocation) navigator.geolocation.clearWatch(geoWatch);
+  geoWatch = null;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = (d) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ---------- تنبيه صوتي: نغمتك الخاصة — كل 3 ثواني، 3 مرات كحد أقصى ----------
+function ensureAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {}
+  // فتح إذن تشغيل الصوت بأول ضغطة من المستخدم (سياسة المتصفحات)
+  try {
+    if (!alertAudio) {
+      alertAudio = new Audio(ALERT_SOUND);
+      alertAudio.muted = true;
+      alertAudio.play().then(() => {
+        alertAudio.pause(); alertAudio.currentTime = 0; alertAudio.muted = false;
+      }).catch(() => { alertAudio.muted = false; });
+    }
+  } catch (e) {}
+}
+
+function ringOnce() {
+  let played = false;
+  try {
+    if (alertAudio) {
+      alertAudio.currentTime = 0;
+      alertAudio.play().catch(() => beepFallback());
+      played = true;
+    }
+  } catch (e) {}
+  if (!played) beepFallback();
+  if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+}
+
+function playAlert() {
+  stopAlert(); // ما منكدس تنبيهات فوق بعض
+  let plays = 0;
+  const ring = () => {
+    plays++;
+    ringOnce();
+    if (plays >= 3) { clearInterval(alertTimer); alertTimer = null; }
+  };
+  ring();
+  alertTimer = setInterval(ring, 3000);
+}
+
+function stopAlert() {
+  if (alertTimer) { clearInterval(alertTimer); alertTimer = null; }
+  try { if (alertAudio) { alertAudio.pause(); alertAudio.currentTime = 0; } } catch (e) {}
+}
+
+// نغمة احتياطية مولدة (إذا الصوت الأساسي ما اشتغل لأي سبب)
+function beepFallback() {
+  try {
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    [[880, 0], [660, .2], [880, .4]].forEach(([freq, dt]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(.001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(.45, t0 + dt + .02);
+      g.gain.exponentialRampToValueAtTime(.001, t0 + dt + .18);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + .2);
+    });
+  } catch (e) {}
+}
+
+function pickupDistTxt(r) {
+  if (myLat == null || r.pickup_lat == null) return "";
+  const d = haversineKm(myLat, myLng, r.pickup_lat, r.pickup_lng);
+  return ` · 📍 الراكب على بُعد ${d < 1 ? Math.round(d * 1000) + " م" : d.toFixed(1) + " كم"}`;
+}
+
+// ---------- قبول الرحلة (عبر الدالة المحمية من الـ race condition) ----------
+async function acceptRide(rideId) {
+  try {
+    const r = await rpc("accept_ride", { p_ride_id: rideId });
+    ride = r;
+    driver.presence = "busy";
+    stopPoll();
+    updatePresenceUI();
+    showTrip();
+  } catch (e) {
+    alert(e.message.includes("no longer available") || e.message.includes("لم تعد")
+      ? "الرحلة راحت — سائق تاني قبلها 😅" : "خطأ: " + e.message);
+    fetchRequests();
+  }
+}
+
+// ---------- دورة الرحلة ----------
+function showTrip() {
+  stopAlert();
+  $("idleView").classList.add("hidden");
+  $("requestsView").classList.add("hidden");
+  $("summaryView").classList.add("hidden");
+  $("tripView").classList.remove("hidden");
+  driver.presence = "busy";
+  updatePresenceUI();
+  startGeo();
+  initTripMap();
+  refreshTripUI();
+}
+
+function refreshTripUI() {
+  $("tripStatus").textContent = STATUS_AR[ride.status] || ride.status;
+  $("tripPickup").textContent = ride.pickup_address;
+  $("tripDest").textContent = ride.dest_address;
+  $("tripFare").textContent = fmt(ride.estimated_fare);
+  $("arrivedBtn").classList.toggle("hidden", ride.status !== "accepted");
+  $("startBtn").classList.toggle("hidden", ride.status !== "arrived");
+  $("completeBtn").classList.toggle("hidden", ride.status !== "in_progress");
+
+  // عداد الانتظار: يبدأ عند الوصول، يتوقف عند بدء الرحلة
+  if (ride.status === "arrived" && !waitStart) startWait();
+  if (ride.status === "in_progress") stopWait();
+
+  // تحديث مسار الخريطة حسب مرحلة الرحلة
+  routeTrip(true);
+}
+
+// ---------- عداد الانتظار ----------
+function startWait() {
+  waitStart = Date.now();
+  $("waitBox").classList.remove("hidden");
+  waitTimer = setInterval(updateWait, 1000);
+  updateWait();
+}
+function updateWait() {
+  const sec = Math.floor((Date.now() - waitStart) / 1000);
+  const m = String(Math.floor(sec / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  $("waitTime").textContent = m + ":" + s;
+
+  const extra = Math.max(0, sec - FREE_WAIT_SEC);
+  const p = pricing.find(x => x.car_category === ride.car_category);
+  waitFee = p && extra > 0 ? Math.ceil(extra / 60) * p.per_minute : 0;
+  $("waitFeeTxt").textContent = fmt(waitFee);
+  $("waitLabel").textContent = sec < FREE_WAIT_SEC
+    ? "أول 3 دقائق مجاناً"
+    : "رسوم انتظار إضافية";
+}
+function stopWait() {
+  clearInterval(waitTimer);
+  waitTimer = null;
+  if (waitFee > 0) $("waitLabel").textContent = "رسوم انتظار (تُضاف للأجرة)";
+  else if (waitStart) $("waitBox").classList.add("hidden");
+}
+function resetWait() {
+  clearInterval(waitTimer);
+  waitStart = null; waitTimer = null; waitFee = 0;
+  $("waitBox").classList.add("hidden");
+}
+
+async function setRideStatus(status) {
+  try {
+    const body = { status };
+    if (status === "in_progress") body.started_at = new Date().toISOString();
+    const rows = await rest("PATCH", `rides?id=eq.${ride.id}&driver_id=eq.${userId}`, body, "return=representation");
+    if (rows && rows[0]) { ride = rows[0]; refreshTripUI(); }
+  } catch (e) { alert("خطأ: " + e.message); }
+}
+
+// ---------- إنهاء الرحلة (تحسب العمولة تلقائياً) ----------
+async function completeRide() {
+  try {
+    const finalFare = (ride.estimated_fare || 0) + waitFee;
+    const r = await rpc("complete_ride", { p_ride_id: ride.id, p_final_fare: finalFare });
+    ride = r;
+    driver.presence = "online";
+    $("tripView").classList.add("hidden");
+    $("summaryView").classList.remove("hidden");
+    $("sumFare").textContent = fmt(r.final_fare);
+    $("sumCommission").textContent = "- " + fmt(r.commission);
+    $("sumNet").textContent = fmt(r.final_fare - r.commission);
+    updatePresenceUI();
+  } catch (e) { alert("خطأ: " + e.message); }
+}
+
+function backToWork() {
+  ride = null;
+  resetWait();
+  $("summaryView").classList.add("hidden");
+  $("idleView").classList.remove("hidden");
+  updatePresenceUI();
+  if (driver.presence === "online") startRequestPoll();
+}
+
+function logout() {
+  token = null; userId = null; driver = null; ride = null;
+  stopPoll();
+  stopGeo();
+  $("appScreen").classList.add("hidden");
+  $("carScreen").classList.add("hidden");
+  ["pendingReview","idleView","requestsView","tripView","summaryView"].forEach(v => $(v).classList.add("hidden"));
+  $("authScreen").classList.remove("hidden");
+}
+
+// ============================================================
+// خريطة الرحلة (OpenStreetMap + OSRM — مجاني بالكامل)
+// ============================================================
+let tMap = null, meMarker = null, puMarker = null, deMarker = null, routeLine = null;
+let lastRouteAt = 0, lastRouteKey = "";
+
+const emojiIcon = (e, size) => L.divIcon({
+  html: `<div style="font-size:${size}px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">${e}</div>`,
+  className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+});
+// دبوس خريطة كلاسيكي
+const pinIcon = (color) => L.divIcon({
+  html: `<svg width="30" height="41" viewBox="0 0 34 46" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">
+    <path d="M17 1C8.2 1 1 8.2 1 17c0 11.5 16 28 16 28s16-16.5 16-28C33 8.2 25.8 1 17 1z" fill="${color}" stroke="#fff" stroke-width="2"/>
+    <circle cx="17" cy="16.5" r="5.5" fill="#fff"/></svg>`,
+  className: "", iconSize: [30, 41], iconAnchor: [15, 40],
+});
+
+function initTripMap() {
+  if (!window.L || !ride) return;
+  $("tripMap").classList.remove("hidden");
+  if (!tMap) {
+    tMap = L.map("tripMap").setView([ride.pickup_lat, ride.pickup_lng], 14);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      attribution: "© OpenStreetMap © CARTO", maxZoom: 19, subdomains: "abcd",
+    }).addTo(tMap);
+    puMarker = L.marker([ride.pickup_lat, ride.pickup_lng], { icon: pinIcon("#10b981") }).addTo(tMap);
+    deMarker = L.marker([ride.dest_lat, ride.dest_lng], { icon: pinIcon("#f59e0b") }).addTo(tMap);
+  } else {
+    puMarker.setLatLng([ride.pickup_lat, ride.pickup_lng]);
+    deMarker.setLatLng([ride.dest_lat, ride.dest_lng]);
+  }
+  // الحاوية كانت مخفية — لازم إعادة قياس
+  setTimeout(() => tMap.invalidateSize(), 150);
+  lastRouteKey = "";
+  routeTrip(true);
+}
+
+// يُستدعى لما يتغير موقع السائق
+function onMyLocationChanged() {
+  if (!tMap || myLat == null) return;
+  if (!meMarker) meMarker = L.marker([myLat, myLng], { icon: emojiIcon("🚕", 26) }).addTo(tMap);
+  else meMarker.setLatLng([myLat, myLng]);
+  routeTrip(false);
+}
+
+// حساب المسار: قبل الركوب → مني للراكب، أثناء الرحلة → مني للوجهة
+async function routeTrip(force) {
+  if (!tMap || !ride) return;
+  const now = Date.now();
+  const key = ride.status;
+  if (!force && now - lastRouteAt < 30000 && key === lastRouteKey) return; // مو أكتر من مرة كل 30 ثانية
+  lastRouteAt = now; lastRouteKey = key;
+
+  const o = myLat != null ? [myLng, myLat] : [ride.pickup_lng, ride.pickup_lat];
+  const d = ride.status === "in_progress"
+    ? [ride.dest_lng, ride.dest_lat]
+    : [ride.pickup_lng, ride.pickup_lat];
+
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${o[0]},${o[1]};${d[0]},${d[1]}?overview=full&geometries=geojson`);
+    const j = await r.json();
+    if (j.routes && j.routes[0]) {
+      const pts = j.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      if (routeLine) routeLine.setLatLngs(pts);
+      else routeLine = L.polyline(pts, { color: "#f59e0b", weight: 5, opacity: .85 }).addTo(tMap);
+      if (force) tMap.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+    }
+  } catch (e) {}
+}
+</script>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
+</script>
+</body>
+</html>
